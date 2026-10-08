@@ -64,6 +64,10 @@
                         <span class="toggle-icon">🎙️</span>
                         <span class="toggle-text">VOICE</span>
                     </button>
+                    <button class="hud-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()" title="System Configuration">
+                        <span class="toggle-icon">⚙️</span>
+                        <span class="toggle-text">CONFIG</span>
+                    </button>
                 </div>
                 <div class="clock-display" id="hud-clock">
                     <span class="time-main" id="time-main">00:00:00</span>
@@ -292,6 +296,128 @@
             <div class="modal-footer">
                 <button class="hud-btn" onclick="closeModal()">CANCEL</button>
                 <button class="hud-btn primary" onclick="createGoalManual()">CONFIRM DIRECTIVE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: SYSTEM CONFIGURATION & SETTINGS ===== -->
+    <div class="hud-modal-overlay" id="settings-modal" style="display:none;">
+        <div class="hud-modal-box settings-modal-box">
+            <div class="modal-corner tl"></div>
+            <div class="modal-corner tr"></div>
+            <div class="modal-corner bl"></div>
+            <div class="modal-corner br"></div>
+
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-tag">[STARK SYSTEM CONFIGURATION]</span>
+                    <h3 id="settings-title-text">SYSTEM PREFERENCES & PROTOCOLS</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeSettingsModal()">&times;</button>
+            </div>
+
+            <div class="modal-body settings-grid">
+                <!-- Section 1: Language & Honorific -->
+                <div class="settings-card">
+                    <div class="settings-card-title">
+                        <span class="sec-icon">🌐</span>
+                        <span id="label-lang-sec">DISPLAY & AI LANGUAGE</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="setting-lang" id="label-lang-select">SYSTEM INTERFACE LANGUAGE</label>
+                        <select id="setting-lang" onchange="onSettingLanguageChange()">
+                            <option value="th">🇹🇭 ภาษาไทย (Thai Default)</option>
+                            <option value="en">🇬🇧 English (Stark Industries Default)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="setting-callsign" id="label-callsign-select">USER CALL SIGN / สรรพนามเรียกผู้ใช้</label>
+                        <select id="setting-callsign">
+                            <option value="ท่าน">ท่าน (Sir - Thai Default)</option>
+                            <option value="Sir">Sir (British Formal)</option>
+                            <option value="บอส">บอส (Boss)</option>
+                            <option value="นายท่าน">นายท่าน (Master)</option>
+                            <option value="Tony">Tony (Stark Direct)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Section 2: Vocal Synthesis & Audio Engine -->
+                <div class="settings-card">
+                    <div class="settings-card-title">
+                        <span class="sec-icon">🎙️</span>
+                        <span id="label-voice-sec">AUDIO & VOCAL ENGINE</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="setting-voice-model" id="label-voice-model">NEURAL VOICE SYNTHESIS</label>
+                        <select id="setting-voice-model">
+                            <option value="th-TH-NiwatNeural">th-TH Niwat Neural (ชาย - สุขุม นุ่มลึก)</option>
+                            <option value="th-TH-PremwadeeNeural">th-TH Premwadee Neural (หญิง - สุภาพ ชัดเจน)</option>
+                            <option value="en-GB-RyanNeural">en-GB Ryan Neural (English Butler - Paul Bettany style)</option>
+                            <option value="en-GB-ThomasNeural">en-GB Thomas Neural (English Formal Male)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="label-auto-speech">AUTO-VOCALIZE RESPONSE</label>
+                        <div class="toggle-checkbox-row">
+                            <input type="checkbox" id="setting-auto-vocalize" checked>
+                            <label for="setting-auto-vocalize" id="label-auto-vocalize-sub">พูดตอบกลับอัตโนมัติด้วยเสียง AI ทุกครั้งที่ได้รับคำสั่ง</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Visual Hologram & Themes -->
+                <div class="settings-card">
+                    <div class="settings-card-title">
+                        <span class="sec-icon">🎨</span>
+                        <span id="label-theme-sec">HUD VISUAL AESTHETICS</span>
+                    </div>
+                    <div class="form-group">
+                        <label id="label-color-palette">HUD COLOR PALETTE</label>
+                        <div class="theme-picker-group">
+                            <button class="theme-btn theme-cyan active" data-theme="cyan" onclick="setHUDTheme('cyan')">
+                                <span class="theme-dot" style="background:#00f0ff;"></span> STARK CYAN
+                            </button>
+                            <button class="theme-btn theme-gold" data-theme="gold" onclick="setHUDTheme('gold')">
+                                <span class="theme-dot" style="background:#ffb700;"></span> MARK III GOLD
+                            </button>
+                            <button class="theme-btn theme-emerald" data-theme="emerald" onclick="setHUDTheme('emerald')">
+                                <span class="theme-dot" style="background:#00ff9d;"></span> STEALTH MATRIX
+                            </button>
+                            <button class="theme-btn theme-purple" data-theme="purple" onclick="setHUDTheme('purple')">
+                                <span class="theme-dot" style="background:#bf40bf;"></span> WAR MACHINE
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="toggle-checkbox-row">
+                            <input type="checkbox" id="setting-scanlines" checked onchange="toggleScanlines(this.checked)">
+                            <label for="setting-scanlines" id="label-scanlines-sub">CRT Scanlines & Hologram Grid Overlay</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Data & Maintenance Protocols -->
+                <div class="settings-card">
+                    <div class="settings-card-title">
+                        <span class="sec-icon">🛡️</span>
+                        <span id="label-data-sec">DATA MAINTENANCE & PROTOCOLS</span>
+                    </div>
+                    <div class="settings-action-buttons">
+                        <button class="hud-btn" onclick="purgeCompletedOps()" id="btn-purge-ops">
+                            <span>🧹</span> ล้างภารกิจที่ทำเสร็จแล้ว (PURGE COMPLETED)
+                        </button>
+                        <button class="hud-btn danger" onclick="purgeChatComms()" id="btn-purge-comms">
+                            <span>🗑️</span> ล้างประวัติ COMMS LOG ทั้งหมด
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="hud-btn" onclick="closeSettingsModal()" id="btn-settings-cancel">CLOSE</button>
+                <button class="hud-btn primary" onclick="saveSettings()" id="btn-settings-save">SAVE PREFERENCES</button>
             </div>
         </div>
     </div>

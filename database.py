@@ -258,6 +258,22 @@ def get_chat_history(limit=50):
     return [dict(m) for m in reversed(messages)]
 
 
+def clear_completed_tasks():
+    """ลบ tasks ที่เสร็จแล้วออกจากระบบ"""
+    conn = get_db()
+    conn.execute("DELETE FROM tasks WHERE is_completed = 1")
+    conn.commit()
+    conn.close()
+
+
+def clear_all_history():
+    """ล้างประวัติการสื่อสารทั้งหมด"""
+    conn = get_db()
+    conn.execute("DELETE FROM chat_messages")
+    conn.commit()
+    conn.close()
+
+
 # ==================== DASHBOARD ====================
 
 def get_dashboard_stats():

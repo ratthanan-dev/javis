@@ -49,6 +49,8 @@ def serve_index():
 
 class ChatRequest(BaseModel):
     message: str
+    language: Optional[str] = "th"
+    callsign: Optional[str] = "ท่าน"
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
@@ -61,7 +63,7 @@ def chat(req: ChatRequest):
     db.save_message("user", user_msg)
     
     # ส่งให้ J.A.R.V.I.S. ประมวลผล
-    result = javis_ai.send_message(user_msg)
+    result = javis_ai.send_message(user_msg, language=req.language or "th", callsign=req.callsign or "ท่าน")
     
     # บันทึกข้อความ J.A.R.V.I.S.
     db.save_message("assistant", result["message"])
@@ -73,14 +75,21 @@ def chat(req: ChatRequest):
     }
 
 
+class BriefingRequest(BaseModel):
+    language: Optional[str] = "th"
+    callsign: Optional[str] = "ท่าน"
+
 @app.post("/api/briefing")
-def trigger_briefing():
+def trigger_briefing(req: Optional[BriefingRequest] = None):
     """เรียกโปรโตคอล Daily Tactical Briefing"""
+    lang = req.language if req and req.language else "th"
+    callsign = req.callsign if req and req.callsign else ("Sir" if lang == "en" else "ท่าน")
+
     # บันทึกข้อความคำสั่ง
     db.save_message("user", "⚡ PROTOCOL: DAILY BRIEFING")
     
     # สร้างการรายงานยุทธการ
-    result = javis_ai.generate_tactical_briefing()
+    result = javis_ai.generate_tactical_briefing(language=lang, callsign=callsign)
     
     db.save_message("assistant", result["message"])
     
@@ -96,6 +105,20 @@ def get_chat_history():
     """ดึงประวัติการสื่อสาร Comms Log"""
     messages = db.get_chat_history(limit=100)
     return {"messages": messages}
+
+
+@app.delete("/api/chat/history")
+def clear_chat_history():
+    """ล้างประวัติการสื่อสาร Comms Log"""
+    db.clear_all_history()
+    return {"success": True}
+
+
+@app.delete("/api/tasks/completed")
+def purge_completed_tasks():
+    """ลบภารกิจปฏิบัติการที่ทำเสร็จแล้วออกจากระบบ"""
+    db.clear_completed_tasks()
+    return {"success": True}
 
 
 # ==================== VOICE / TTS API ====================

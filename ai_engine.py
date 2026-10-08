@@ -129,13 +129,21 @@ class JavisAI:
         """รีเฟรช context เมื่อมีการเปลี่ยนแปลง Directives"""
         self._init_chat()
 
-    def send_message(self, message: str):
-        """ส่งข้อความและประมวลผลการตอบกลับ (พร้อม auto-retry)"""
+    def send_message(self, message: str, language: str = "th", callsign: str = "ท่าน"):
+        """ส่งข้อความและประมวลผลการตอบกลับ (พร้อม auto-retry และรองรับภาษา/สรรพนาม)"""
         max_retries = 3
         
+        # ใส่คำสั่งระบุภาษาและสรรพนามเรียกผู้ใช้
+        if language == "en":
+            active_callsign = callsign if callsign and callsign != "ท่าน" else "Sir"
+            formatted_input = f"[DIRECTIVE: Respond in English with authentic J.A.R.V.I.S. British butler persona. Address the user as '{active_callsign}'.]\nUser Command: {message}"
+        else:
+            active_callsign = callsign or "ท่าน"
+            formatted_input = f"[DIRECTIVE: ตอบเป็นภาษาไทยอย่างสุขุมและเฉียบคม สไตล์ J.A.R.V.I.S. และเรียกผู้ใช้งานว่า '{active_callsign}' เสมอ]\nคำสั่งจากผู้ใช้: {message}"
+
         for attempt in range(max_retries):
             try:
-                response = self.chat.send_message(message)
+                response = self.chat.send_message(formatted_input)
                 raw_text = response.text
                 
                 # แยก message และ goal data
@@ -184,17 +192,41 @@ class JavisAI:
                     self._init_chat()
                     continue
                 
-                fallback_msg = f"ขออภัยครับท่าน เกิดข้อขัดข้องในระบบเครือข่าย: {error_str}\n\nกรุณาสั่งการใหม่อีกครั้งครับ"
+                fallback_msg = (
+                    f"My apologies, {callsign or 'Sir'}, a network transmission anomaly has occurred: {error_str}"
+                    if language == "en" else
+                    f"ขออภัยครับ{callsign or 'ท่าน'} เกิดข้อขัดข้องในระบบเครือข่าย: {error_str}\n\nกรุณาสั่งการใหม่อีกครั้งครับ"
+                )
                 return {
                     "message": fallback_msg,
                     "speech_text": clean_for_speech(fallback_msg),
                     "created_goals": []
                 }
 
-    def generate_tactical_briefing(self):
+    def generate_tactical_briefing(self, language: str = "th", callsign: str = "ท่าน"):
         """สร้างการรายงานยุทธการประจำวัน Daily Tactical Briefing"""
         data = db.get_tactical_briefing_data()
-        briefing_prompt = f"""[PROTOCOL OVERRIDE: DAILY BRIEFING]
+        active_callsign = (callsign if callsign and callsign != "ท่าน" else "Sir") if language == "en" else (callsign or "ท่าน")
+
+        if language == "en":
+            briefing_prompt = f"""[PROTOCOL OVERRIDE: DAILY BRIEFING IN ENGLISH]
+Current Stark Systems Telemetry:
+- Active Strategic Directives: {len(data['active_goals'])}
+- Directives List: {[g['title'] + f" ({g['progress']}%)" for g in data['active_goals']]}
+- Total Tactical Operations Today: {len(data['today_tasks'])}
+- Completed Operations: {data['completed_today_count']}
+- Pending Operations: {data['pending_today_count']}
+- Today's Operations: {[t['title'] + (' (Completed)' if t['is_completed'] else ' (Pending)') for t in data['today_tasks']]}
+- Operational Streak: {data['streak']} days
+
+Please provide a formal, articulate Daily Tactical Briefing in British English for {active_callsign}. Cover:
+1. System Status & Readiness
+2. Today's Tactical Priorities
+3. One sharp Strategic Directive / Advisory
+End with a prompt affirming full readiness to assist.
+"""
+        else:
+            briefing_prompt = f"""[PROTOCOL OVERRIDE: DAILY BRIEFING]
 รายงานสถานะปัจจุบันของผู้ใช้:
 - Directives ที่กำลังดำเนินการ: {len(data['active_goals'])} รายการ
 - รายการ Directives: {[g['title'] + f" ({g['progress']}%)" for g in data['active_goals']]}
@@ -204,9 +236,9 @@ class JavisAI:
 - รายการปฏิบัติการวันนี้: {[t['title'] + (' (สำเร็จแล้ว)' if t['is_completed'] else ' (รอปฏิบัติการ)') for t in data['today_tasks']]}
 - Streak ความต่อเนื่อง: {data['streak']} วัน
 
-กรุณาให้ Daily Tactical Briefing สไตล์ J.A.R.V.I.S. อย่างสง่างามและเฉียบขาดแก่ท่าน (Sir) ครอบคลุมสถานะภาพรวม ยุทธการเร่งด่วนวันนี้ และคำแนะนำเชิงกลยุทธ์ 1 ข้อ
+กรุณาให้ Daily Tactical Briefing สไตล์ J.A.R.V.I.S. อย่างสง่างามและเฉียบขาดแก่{active_callsign} ครอบคลุมสถานะภาพรวม ยุทธการเร่งด่วนวันนี้ และคำแนะนำเชิงกลยุทธ์ 1 ข้อ
 """
-        return self.send_message(briefing_prompt)
+        return self.send_message(briefing_prompt, language=language, callsign=active_callsign)
 
     def _parse_response(self, text):
         """แยก clean message ออกจาก directive JSON ทั้งสองแท็ก"""

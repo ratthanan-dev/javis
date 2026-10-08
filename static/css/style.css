@@ -49,7 +49,7 @@ html, body {
     font-family: var(--font-body);
     font-size: 14px;
     line-height: 1.5;
-    overflow-x: hidden;
+    overflow-x: clip;
     position: relative;
 }
 
@@ -117,20 +117,26 @@ body::before {
     box-shadow: 0 0 10px var(--stark-cyan);
 }
 
-/* ==================== HUD HEADER ==================== */
+/* ==================== STICKY TOP HUD BAR ==================== */
 
-#hud-header {
+.hud-sticky-bar {
     position: sticky;
     top: 0;
     z-index: 100;
+    width: 100%;
+    background: rgba(3, 8, 20, 0.94);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border-cyan);
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.7);
+}
+
+#hud-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 10px 24px;
-    background: rgba(3, 8, 20, 0.88);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border-cyan);
-    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .header-section {
@@ -139,16 +145,27 @@ body::before {
     gap: 18px;
 }
 
+.header-left {
+    flex-shrink: 0;
+}
+
 /* Brand */
 .stark-brand {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .arc-mini-icon {
     width: 30px;
     height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    max-width: 30px;
+    max-height: 30px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     border: 2px solid var(--stark-cyan);
     display: flex;
@@ -156,15 +173,21 @@ body::before {
     justify-content: center;
     box-shadow: 0 0 12px var(--stark-cyan-glow);
     position: relative;
+    box-sizing: border-box;
 }
 
 .arc-core-pulse {
     width: 10px;
     height: 10px;
+    min-width: 10px;
+    min-height: 10px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     background: #ffffff;
     border-radius: 50%;
     box-shadow: 0 0 10px var(--stark-cyan);
     animation: corePulse 2s infinite ease-in-out;
+    box-sizing: border-box;
 }
 
 @keyframes corePulse {
@@ -214,6 +237,10 @@ body::before {
 .hud-badge .badge-dot {
     width: 7px;
     height: 7px;
+    min-width: 7px;
+    min-height: 7px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     background: var(--stark-green);
     box-shadow: 0 0 8px var(--stark-green);
@@ -327,14 +354,11 @@ body::before {
 /* ==================== TELEMETRY TICKER BAR ==================== */
 
 #telemetry-bar {
-    position: relative;
-    z-index: 10;
     display: flex;
     align-items: center;
     gap: 16px;
     padding: 6px 24px;
-    background: rgba(2, 6, 16, 0.9);
-    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(2, 6, 16, 0.85);
     font-family: var(--font-mono);
     font-size: 11px;
     overflow-x: auto;
@@ -497,7 +521,10 @@ body::before {
     position: relative;
     width: 52px;
     height: 52px;
+    min-width: 52px;
+    min-height: 52px;
     flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     background: rgba(0, 25, 55, 0.85);
     border: 2px solid var(--border-cyan);
@@ -729,6 +756,10 @@ body::before {
 .empty-reticle {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     border: 1px dashed var(--border-cyan);
     margin: 0 auto 12px;
@@ -1034,6 +1065,10 @@ body::before {
 .channel-indicator {
     width: 8px;
     height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     background: var(--stark-cyan);
     box-shadow: 0 0 8px var(--stark-cyan);
@@ -1310,3 +1345,153 @@ body::before {
     color: #000000;
     box-shadow: 0 0 20px var(--stark-cyan);
 }
+
+.hud-btn.danger {
+    background: rgba(255, 51, 85, 0.12);
+    border-color: var(--stark-red);
+    color: #ff6b81;
+}
+
+.hud-btn.danger:hover {
+    background: var(--stark-red);
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(255, 51, 85, 0.5);
+}
+
+/* ==================== SYSTEM CONFIGURATION MODAL ==================== */
+
+.settings-modal-box {
+    max-width: 780px;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 680px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.settings-card {
+    background: rgba(4, 12, 30, 0.7);
+    border: 1px solid var(--border-subtle);
+    padding: 16px;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-tech);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--stark-cyan);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 8px;
+    margin-bottom: 2px;
+}
+
+.toggle-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.toggle-checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--stark-cyan);
+    cursor: pointer;
+}
+
+.theme-picker-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.theme-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    font-family: var(--font-tech);
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(0, 15, 35, 0.6);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+}
+
+.theme-btn:hover {
+    border-color: var(--border-cyan);
+    color: #ffffff;
+}
+
+.theme-btn.active {
+    border-color: var(--stark-cyan);
+    color: #ffffff;
+    background: rgba(0, 240, 255, 0.12);
+    box-shadow: 0 0 10px var(--stark-cyan-glow);
+}
+
+.theme-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.settings-action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+/* ==================== DYNAMIC COLOR THEME OVERRIDES ==================== */
+
+body[data-theme="gold"] {
+    --stark-cyan: #ffaa00;
+    --stark-cyan-dim: rgba(255, 170, 0, 0.2);
+    --stark-cyan-glow: rgba(255, 170, 0, 0.45);
+    --stark-blue: #ff4444;
+    --border-cyan: rgba(255, 170, 0, 0.3);
+    --border-cyan-bright: rgba(255, 170, 0, 0.6);
+}
+
+body[data-theme="emerald"] {
+    --stark-cyan: #00ff9d;
+    --stark-cyan-dim: rgba(0, 255, 157, 0.2);
+    --stark-cyan-glow: rgba(0, 255, 157, 0.45);
+    --stark-blue: #00b377;
+    --border-cyan: rgba(0, 255, 157, 0.3);
+    --border-cyan-bright: rgba(0, 255, 157, 0.6);
+}
+
+body[data-theme="purple"] {
+    --stark-cyan: #c044ff;
+    --stark-cyan-dim: rgba(192, 68, 255, 0.2);
+    --stark-cyan-glow: rgba(192, 68, 255, 0.45);
+    --stark-blue: #7000ff;
+    --border-cyan: rgba(192, 68, 255, 0.3);
+    --border-cyan-bright: rgba(192, 68, 255, 0.6);
+}
+
