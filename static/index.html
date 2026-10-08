@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="J.A.R.V.I.S. — Tactical Mission Control & Strategic Life Assistant (Stark OS)">
+    <title>J.A.R.V.I.S. — Tactical Mission Control // STARK OS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="stark-hud">
+    <!-- Scanlines & Ambient Hologram Grid -->
+    <div class="hud-scanlines"></div>
+    <div class="hud-vignette"></div>
+
+    <!-- ===== TOP HUD STICKY BAR (HEADER + TELEMETRY) ===== -->
+    <div id="hud-top-bar" class="hud-sticky-bar">
+        <!-- ===== TOP HUD HEADER ===== -->
+        <header id="hud-header">
+            <div class="header-section header-left">
+                <div class="stark-brand">
+                    <div class="arc-mini-icon">
+                        <div class="arc-core-pulse"></div>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-title">STARK INDUSTRIES</span>
+                        <span class="brand-sub">J.A.R.V.I.S. <span class="version-tag">OS v10.4</span></span>
+                    </div>
+                </div>
+                <div class="hud-badge online" id="system-badge">
+                    <span class="badge-dot"></span>
+                    <span class="badge-text" id="system-status-text">ALL SYSTEMS NOMINAL</span>
+                </div>
+            </div>
+
+            <nav class="header-section header-nav">
+                <button class="hud-nav-btn active" data-view="dashboard" id="nav-dashboard">
+                    <span class="nav-glow"></span>
+                    <span class="nav-code">01</span>
+                    <span class="nav-label">MISSION CONTROL</span>
+                </button>
+                <button class="hud-nav-btn" data-view="goals" id="nav-goals">
+                    <span class="nav-glow"></span>
+                    <span class="nav-code">02</span>
+                    <span class="nav-label">DIRECTIVES MATRIX</span>
+                </button>
+                <button class="hud-nav-btn" data-view="chat" id="nav-chat">
+                    <span class="nav-glow"></span>
+                    <span class="nav-code">03</span>
+                    <span class="nav-label">COMMS LOG</span>
+                    <span class="nav-dot" id="chat-dot" style="display:none;"></span>
+                </button>
+            </nav>
+
+            <div class="header-section header-right">
+                <div class="hud-controls">
+                    <button class="hud-toggle-btn active" id="btn-toggle-sfx" title="สลับเสียงเอฟเฟกต์ Sci-Fi">
+                        <span class="toggle-icon">🔊</span>
+                        <span class="toggle-text">SFX</span>
+                    </button>
+                    <button class="hud-toggle-btn active" id="btn-toggle-voice" title="สลับเสียงสังเคราะห์ J.A.R.V.I.S.">
+                        <span class="toggle-icon">🎙️</span>
+                        <span class="toggle-text">VOICE</span>
+                    </button>
+                </div>
+                <div class="clock-display" id="hud-clock">
+                    <span class="time-main" id="time-main">00:00:00</span>
+                    <span class="time-zone">ICT // STARK TIME</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== TELEMETRY TICKER BAR ===== -->
+        <section id="telemetry-bar">
+            <div class="telemetry-item">
+                <span class="t-label">DIRECTIVES:</span>
+                <span class="t-value" id="t-directives">0 ACTIVE</span>
+            </div>
+            <div class="telemetry-divider">//</div>
+            <div class="telemetry-item">
+                <span class="t-label">TODAY'S OPS:</span>
+                <span class="t-value" id="t-today-ops">0 / 0</span>
+            </div>
+            <div class="telemetry-divider">//</div>
+            <div class="telemetry-item">
+                <span class="t-label">ARC CORE EFFICIENCY:</span>
+                <span class="t-value highlight" id="t-efficiency">0%</span>
+            </div>
+            <div class="telemetry-divider">//</div>
+            <div class="telemetry-item">
+                <span class="t-label">STREAK PROTOCOL:</span>
+                <span class="t-value amber" id="t-streak">0 DAYS</span>
+            </div>
+            <div class="telemetry-divider">//</div>
+            <div class="telemetry-item">
+                <span class="t-label">NEURAL ENGINE:</span>
+                <span class="t-value cyan" id="t-neural">GEMINI FLASH ONLINE</span>
+            </div>
+        </section>
+    </div>
+
+    <!-- ===== MAIN COMMAND STAGE ===== -->
+    <main id="hud-stage">
+
+        <!-- ===== CENTRAL HOLOGRAPHIC CONSOLE ===== -->
+        <section id="hologram-bay">
+            <div class="reactor-wrapper">
+                <div class="hud-reticle"></div>
+                <!-- Dynamic Arc Reactor Canvas -->
+                <canvas id="arc-reactor-canvas" width="320" height="320"></canvas>
+                
+                <div class="reactor-readout">
+                    <span class="reactor-state" id="reactor-state-text">STANDBY // READY</span>
+                    <span class="reactor-sub" id="reactor-sub-text">CLICK MIC OR TRANSMIT COMMAND</span>
+                </div>
+            </div>
+
+            <!-- Command Protocols Quick Chips -->
+            <div class="protocol-chips">
+                <button class="protocol-chip primary" id="btn-protocol-briefing" onclick="runBriefingProtocol()">
+                    <span class="chip-glow"></span>
+                    <span class="chip-icon">⚡</span>
+                    <span class="chip-text">PROTOCOL: DAILY BRIEFING</span>
+                </button>
+                <button class="protocol-chip" onclick="quickSend('รายงานสถานะ Directives ปัจจุบันและความคืบหน้าครับ จาวิส')">
+                    <span class="chip-icon">🔍</span>
+                    <span class="chip-text">STATUS SCAN</span>
+                </button>
+                <button class="protocol-chip" onclick="showAddGoalModal()">
+                    <span class="chip-icon">🎯</span>
+                    <span class="chip-text">NEW DIRECTIVE</span>
+                </button>
+                <button class="protocol-chip" onclick="quickSend('ขอคำแนะนำเชิงยุทธศาสตร์เพื่อเพิ่มประสิทธิภาพการทำงานวันนี้ครับ')">
+                    <span class="chip-icon">💡</span>
+                    <span class="chip-text">STRATEGIC ADVICE</span>
+                </button>
+            </div>
+
+            <!-- Unified HUD Input & Voice Transmission -->
+            <div class="command-input-bay">
+                <button class="mic-btn" id="btn-mic" title="กดเพื่อสั่งงานด้วยเสียง (Speech Input)" onclick="toggleVoiceInput()">
+                    <div class="mic-wave"></div>
+                    <svg class="mic-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+
+                <div class="terminal-input-wrapper">
+                    <span class="terminal-prompt">&gt;</span>
+                    <input type="text" id="hud-command-input" placeholder="สั่งการ J.A.R.V.I.S. หรือระบุยุทธการที่ต้องการ (เช่น 'วางแผนฟิตหุ่น', '/briefing')..." autocomplete="off">
+                    <button class="transmit-btn" id="btn-transmit" onclick="submitCommand()">
+                        <span>TRANSMIT</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== TAB 1: MISSION CONTROL (DASHBOARD) ===== -->
+        <section class="hud-view active" id="view-dashboard">
+            <div class="dashboard-panels">
+                
+                <!-- Active Directives Panel -->
+                <div class="hud-panel" id="panel-directives">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <span class="panel-tag">[DIRECTIVES]</span>
+                            <h2>STRATEGIC DIRECTIVES</h2>
+                        </div>
+                        <span class="panel-action-link" onclick="switchView('goals')">EXPAND MATRIX &rarr;</span>
+                    </div>
+                    <div class="panel-body" id="dashboard-goals-list">
+                        <div class="hud-empty-state">
+                            <div class="empty-reticle"></div>
+                            <p class="empty-title">NO ACTIVE DIRECTIVES INITIALIZED</p>
+                            <p class="empty-desc">สั่งการ J.A.R.V.I.S. หรือกด 'NEW DIRECTIVE' เพื่อเริ่มยุทธการแรก</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Tactical Operations Panel -->
+                <div class="hud-panel" id="panel-operations">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <span class="panel-tag">[OPERATIONS]</span>
+                            <h2>TODAY'S TACTICAL OPS</h2>
+                        </div>
+                        <span class="panel-count-badge" id="today-count-badge">0 PENDING</span>
+                    </div>
+                    <div class="panel-body" id="dashboard-today-list">
+                        <div class="hud-empty-state">
+                            <div class="empty-reticle"></div>
+                            <p class="empty-title">NO IMMEDIATE OPERATIONS FOR TODAY</p>
+                            <p class="empty-desc">ยุทธการทั้งหมดพร้อมรับคำสั่งการใหม่จากท่านครับ</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===== TAB 2: DIRECTIVES MATRIX (GOALS) ===== -->
+        <section class="hud-view" id="view-goals">
+            <div class="matrix-header">
+                <div class="matrix-title-group">
+                    <span class="panel-tag">[MISSION MATRIX]</span>
+                    <h1>STRATEGIC DIRECTIVES OVERVIEW</h1>
+                </div>
+                <button class="hud-btn primary" onclick="showAddGoalModal()">
+                    <span>+</span> INITIALIZE NEW DIRECTIVE
+                </button>
+            </div>
+            <div class="matrix-grid" id="goals-grid">
+                <!-- Dynamically Rendered Cards -->
+            </div>
+        </section>
+
+        <!-- ===== TAB 3: COMMS LOG (CHAT) ===== -->
+        <section class="hud-view" id="view-chat">
+            <div class="comms-container">
+                <div class="comms-header">
+                    <div class="comms-channel">
+                        <span class="channel-indicator"></span>
+                        <span class="channel-name">SECURE NEURAL COMMS // PROTOCOL STARK-01</span>
+                    </div>
+                    <button class="comms-clear-btn" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
+                        CLEAR LOG
+                    </button>
+                </div>
+                <div class="comms-messages" id="chat-messages">
+                    <!-- Messages will be appended here -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===== AUDIO ELEMENT FOR J.A.R.V.I.S. VOICE ===== -->
+    <audio id="jarvis-audio-player" style="display:none;" preload="auto"></audio>
+
+    <!-- ===== MODAL: INITIALIZE NEW DIRECTIVE ===== -->
+    <div class="hud-modal-overlay" id="modal-overlay" style="display:none;">
+        <div class="hud-modal-box">
+            <div class="modal-corner tl"></div>
+            <div class="modal-corner tr"></div>
+            <div class="modal-corner bl"></div>
+            <div class="modal-corner br"></div>
+
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-tag">[STARK SYSTEM PROTOCOL]</span>
+                    <h3>INITIALIZE STRATEGIC DIRECTIVE</h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="goal-title">DIRECTIVE CODENAME / TITLE *</label>
+                    <input type="text" id="goal-title" placeholder="เช่น ยุทธการยกระดับสุขภาพ 90 วัน, สอบใบรับรอง Cloud Architect" required>
+                </div>
+                <div class="form-group">
+                    <label for="goal-desc">STRATEGIC DESCRIPTION / OBJECTIVES</label>
+                    <textarea id="goal-desc" rows="3" placeholder="ระบุเป้าหมาย ผลลัพธ์ที่ต้องการ และแนวทางปฏิบัติ..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="goal-category">CLASSIFICATION / CATEGORY</label>
+                        <select id="goal-category">
+                            <option value="career">💼 CAREER & VENTURE</option>
+                            <option value="health">💪 PHYSICAL & COMBAT READY (HEALTH)</option>
+                            <option value="finance">💰 CAPITAL & WEALTH</option>
+                            <option value="education">📚 KNOWLEDGE & INTEL</option>
+                            <option value="personal">🌟 PERSONAL PROTOCOL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="goal-date">TARGET COMPLETION DATE</label>
+                        <input type="date" id="goal-date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="hud-btn" onclick="closeModal()">CANCEL</button>
+                <button class="hud-btn primary" onclick="createGoalManual()">CONFIRM DIRECTIVE</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
