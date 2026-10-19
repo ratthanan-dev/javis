@@ -7,11 +7,11 @@
     <title>J.A.R.V.I.S. — Tactical Mission Control // STARK OS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="stark-hud">
-    <!-- Scanlines & Ambient Hologram Grid -->
+    <!-- Ambient Hologram Grid & Radial Energy Field -->
     <div class="hud-scanlines"></div>
     <div class="hud-vignette"></div>
 
@@ -20,7 +20,7 @@
         <!-- ===== TOP HUD HEADER ===== -->
         <header id="hud-header">
             <div class="header-section header-left">
-                <div class="stark-brand">
+                <div class="stark-brand" onclick="switchView('dashboard')" title="Return to Mission Control">
                     <div class="arc-mini-icon">
                         <div class="arc-core-pulse"></div>
                     </div>
@@ -29,49 +29,51 @@
                         <span class="brand-sub">J.A.R.V.I.S. <span class="version-tag">OS v10.4</span></span>
                     </div>
                 </div>
-                <div class="hud-badge online" id="system-badge">
+                <div class="hud-badge online" id="system-badge" title="สถานะระบบปกติ">
                     <span class="badge-dot"></span>
-                    <span class="badge-text" id="system-status-text">ALL SYSTEMS NOMINAL</span>
+                    <span class="badge-text" id="system-status-text">ระบบทั้งหมดพร้อมปฏิบัติการ</span>
                 </div>
             </div>
 
-            <nav class="header-section header-nav">
-                <button class="hud-nav-btn active" data-view="dashboard" id="nav-dashboard">
-                    <span class="nav-glow"></span>
-                    <span class="nav-code">01</span>
-                    <span class="nav-label">MISSION CONTROL</span>
-                </button>
-                <button class="hud-nav-btn" data-view="goals" id="nav-goals">
-                    <span class="nav-glow"></span>
-                    <span class="nav-code">02</span>
-                    <span class="nav-label">DIRECTIVES MATRIX</span>
-                </button>
-                <button class="hud-nav-btn" data-view="chat" id="nav-chat">
-                    <span class="nav-glow"></span>
-                    <span class="nav-code">03</span>
-                    <span class="nav-label">COMMS LOG</span>
-                    <span class="nav-dot" id="chat-dot" style="display:none;"></span>
-                </button>
+            <nav class="header-section header-nav" aria-label="Main Navigation">
+                <div class="nav-pill-dock">
+                    <button class="hud-nav-btn active" data-view="dashboard" id="nav-dashboard">
+                        <span class="nav-glow"></span>
+                        <span class="nav-code">01</span>
+                        <span class="nav-label">ศูนย์บัญชาการภารกิจ</span>
+                    </button>
+                    <button class="hud-nav-btn" data-view="goals" id="nav-goals">
+                        <span class="nav-glow"></span>
+                        <span class="nav-code">02</span>
+                        <span class="nav-label">ผังยุทธการหลัก</span>
+                    </button>
+                    <button class="hud-nav-btn" data-view="chat" id="nav-chat">
+                        <span class="nav-glow"></span>
+                        <span class="nav-code">03</span>
+                        <span class="nav-label">บันทึกการสื่อสาร</span>
+                        <span class="nav-dot" id="chat-dot" style="display:none;"></span>
+                    </button>
+                </div>
             </nav>
 
             <div class="header-section header-right">
                 <div class="hud-controls">
-                    <button class="hud-toggle-btn active" id="btn-toggle-sfx" title="สลับเสียงเอฟเฟกต์ Sci-Fi">
+                    <button class="hud-toggle-btn active" id="btn-toggle-sfx">
                         <span class="toggle-icon">🔊</span>
-                        <span class="toggle-text">SFX</span>
+                        <span class="toggle-text">เอฟเฟกต์</span>
                     </button>
-                    <button class="hud-toggle-btn active" id="btn-toggle-voice" title="สลับเสียงสังเคราะห์ J.A.R.V.I.S.">
+                    <button class="hud-toggle-btn active" id="btn-toggle-voice">
                         <span class="toggle-icon">🎙️</span>
-                        <span class="toggle-text">VOICE</span>
+                        <span class="toggle-text">เสียง AI</span>
                     </button>
-                    <button class="hud-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()" title="System Configuration">
+                    <button class="hud-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()">
                         <span class="toggle-icon">⚙️</span>
-                        <span class="toggle-text">CONFIG</span>
+                        <span class="toggle-text">ตั้งค่าระบบ</span>
                     </button>
                 </div>
                 <div class="clock-display" id="hud-clock">
                     <span class="time-main" id="time-main">00:00:00</span>
-                    <span class="time-zone">ICT // STARK TIME</span>
+                    <span class="time-zone">ICT // เวลาประจำการ</span>
                 </div>
             </div>
         </header>
@@ -79,28 +81,28 @@
         <!-- ===== TELEMETRY TICKER BAR ===== -->
         <section id="telemetry-bar">
             <div class="telemetry-item">
-                <span class="t-label">DIRECTIVES:</span>
-                <span class="t-value" id="t-directives">0 ACTIVE</span>
+                <span class="t-label" id="lbl-t-directives">ยุทธการหลัก:</span>
+                <span class="t-value" id="t-directives">0 กำลังดำเนินการ</span>
             </div>
             <div class="telemetry-divider">//</div>
             <div class="telemetry-item">
-                <span class="t-label">TODAY'S OPS:</span>
+                <span class="t-label" id="lbl-t-today-ops">ภารกิจวันนี้:</span>
                 <span class="t-value" id="t-today-ops">0 / 0</span>
             </div>
             <div class="telemetry-divider">//</div>
             <div class="telemetry-item">
-                <span class="t-label">ARC CORE EFFICIENCY:</span>
+                <span class="t-label" id="lbl-t-efficiency">ประสิทธิภาพเตาปฏิกรณ์:</span>
                 <span class="t-value highlight" id="t-efficiency">0%</span>
             </div>
             <div class="telemetry-divider">//</div>
             <div class="telemetry-item">
-                <span class="t-label">STREAK PROTOCOL:</span>
-                <span class="t-value amber" id="t-streak">0 DAYS</span>
+                <span class="t-label" id="lbl-t-streak">ความต่อเนื่องภารกิจ:</span>
+                <span class="t-value amber" id="t-streak">0 วัน</span>
             </div>
             <div class="telemetry-divider">//</div>
             <div class="telemetry-item">
-                <span class="t-label">NEURAL ENGINE:</span>
-                <span class="t-value cyan" id="t-neural">GEMINI FLASH ONLINE</span>
+                <span class="t-label" id="lbl-t-neural">ระบบประมวลผล:</span>
+                <span class="t-value cyan" id="t-neural">GEMINI-FLASH พร้อมใช้งาน</span>
             </div>
         </section>
     </div>
@@ -116,8 +118,8 @@
                 <canvas id="arc-reactor-canvas" width="320" height="320"></canvas>
                 
                 <div class="reactor-readout">
-                    <span class="reactor-state" id="reactor-state-text">STANDBY // READY</span>
-                    <span class="reactor-sub" id="reactor-sub-text">CLICK MIC OR TRANSMIT COMMAND</span>
+                    <span class="reactor-state" id="reactor-state-text">สแตนด์บาย // พร้อมรับคำสั่ง</span>
+                    <span class="reactor-sub" id="reactor-sub-text">กดไมค์หรือพิมพ์คำสั่งเพื่อสั่งการ</span>
                 </div>
             </div>
 
@@ -126,19 +128,19 @@
                 <button class="protocol-chip primary" id="btn-protocol-briefing" onclick="runBriefingProtocol()">
                     <span class="chip-glow"></span>
                     <span class="chip-icon">⚡</span>
-                    <span class="chip-text">PROTOCOL: DAILY BRIEFING</span>
+                    <span class="chip-text">โปรโตคอล: รายงานสรุปประจำวัน</span>
                 </button>
-                <button class="protocol-chip" onclick="quickSend('รายงานสถานะ Directives ปัจจุบันและความคืบหน้าครับ จาวิส')">
+                <button class="protocol-chip" onclick="quickSend('scan')">
                     <span class="chip-icon">🔍</span>
-                    <span class="chip-text">STATUS SCAN</span>
+                    <span class="chip-text" id="chip-scan-text">สแกนสถานะยุทธการ</span>
                 </button>
                 <button class="protocol-chip" onclick="showAddGoalModal()">
                     <span class="chip-icon">🎯</span>
-                    <span class="chip-text">NEW DIRECTIVE</span>
+                    <span class="chip-text" id="chip-new-text">สร้างยุทธการใหม่</span>
                 </button>
-                <button class="protocol-chip" onclick="quickSend('ขอคำแนะนำเชิงยุทธศาสตร์เพื่อเพิ่มประสิทธิภาพการทำงานวันนี้ครับ')">
+                <button class="protocol-chip" onclick="quickSend('advice')">
                     <span class="chip-icon">💡</span>
-                    <span class="chip-text">STRATEGIC ADVICE</span>
+                    <span class="chip-text" id="chip-advice-text">คำแนะนำเชิงกลยุทธ์</span>
                 </button>
             </div>
 
@@ -158,7 +160,7 @@
                     <span class="terminal-prompt">&gt;</span>
                     <input type="text" id="hud-command-input" placeholder="สั่งการ J.A.R.V.I.S. หรือระบุยุทธการที่ต้องการ (เช่น 'วางแผนฟิตหุ่น', '/briefing')..." autocomplete="off">
                     <button class="transmit-btn" id="btn-transmit" onclick="submitCommand()">
-                        <span>TRANSMIT</span>
+                        <span id="lbl-btn-transmit">ส่งคำสั่ง</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                             <polyline points="12 5 19 12 12 19"></polyline>
@@ -176,16 +178,16 @@
                 <div class="hud-panel" id="panel-directives">
                     <div class="panel-header">
                         <div class="panel-title-group">
-                            <span class="panel-tag">[DIRECTIVES]</span>
-                            <h2>STRATEGIC DIRECTIVES</h2>
+                            <span class="panel-tag" id="lbl-panel-directives-tag">[ยุทธการหลัก]</span>
+                            <h2 id="lbl-panel-directives-title">ยุทธการเชิงกลยุทธ์</h2>
                         </div>
-                        <span class="panel-action-link" onclick="switchView('goals')">EXPAND MATRIX &rarr;</span>
+                        <span class="panel-action-link" id="lbl-panel-directives-link" onclick="switchView('goals')">ดูผังยุทธการทั้งหมด &rarr;</span>
                     </div>
                     <div class="panel-body" id="dashboard-goals-list">
                         <div class="hud-empty-state">
                             <div class="empty-reticle"></div>
-                            <p class="empty-title">NO ACTIVE DIRECTIVES INITIALIZED</p>
-                            <p class="empty-desc">สั่งการ J.A.R.V.I.S. หรือกด 'NEW DIRECTIVE' เพื่อเริ่มยุทธการแรก</p>
+                            <p class="empty-title">ยังไม่มีการกำหนดยุทธการหลัก</p>
+                            <p class="empty-desc">สั่งการ J.A.R.V.I.S. หรือกด 'สร้างยุทธการใหม่' เพื่อเริ่มภารกิจแรก</p>
                         </div>
                     </div>
                 </div>
@@ -194,16 +196,16 @@
                 <div class="hud-panel" id="panel-operations">
                     <div class="panel-header">
                         <div class="panel-title-group">
-                            <span class="panel-tag">[OPERATIONS]</span>
-                            <h2>TODAY'S TACTICAL OPS</h2>
+                            <span class="panel-tag" id="lbl-panel-ops-tag">[ภารกิจวันนี้]</span>
+                            <h2 id="lbl-panel-ops-title">ปฏิบัติการประจำวัน</h2>
                         </div>
-                        <span class="panel-count-badge" id="today-count-badge">0 PENDING</span>
+                        <span class="panel-count-badge" id="today-count-badge">0 ภารกิจคงค้าง</span>
                     </div>
                     <div class="panel-body" id="dashboard-today-list">
                         <div class="hud-empty-state">
                             <div class="empty-reticle"></div>
-                            <p class="empty-title">NO IMMEDIATE OPERATIONS FOR TODAY</p>
-                            <p class="empty-desc">ยุทธการทั้งหมดพร้อมรับคำสั่งการใหม่จากท่านครับ</p>
+                            <p class="empty-title">ไม่มีภารกิจคงค้างสำหรับวันนี้</p>
+                            <p class="empty-desc">ทุกยุทธการพร้อมรับคำสั่งการใหม่จากท่านครับ</p>
                         </div>
                     </div>
                 </div>
@@ -215,11 +217,11 @@
         <section class="hud-view" id="view-goals">
             <div class="matrix-header">
                 <div class="matrix-title-group">
-                    <span class="panel-tag">[MISSION MATRIX]</span>
-                    <h1>STRATEGIC DIRECTIVES OVERVIEW</h1>
+                    <span class="panel-tag" id="lbl-matrix-tag">[ผังยุทธการ]</span>
+                    <h1 id="lbl-matrix-title">ภาพรวมยุทธการเชิงกลยุทธ์ทั้งหมด</h1>
                 </div>
-                <button class="hud-btn primary" onclick="showAddGoalModal()">
-                    <span>+</span> INITIALIZE NEW DIRECTIVE
+                <button class="hud-btn primary" id="btn-matrix-new" onclick="showAddGoalModal()">
+                    <span>+</span> <span id="lbl-btn-matrix-new">เพิ่มยุทธการใหม่</span>
                 </button>
             </div>
             <div class="matrix-grid" id="goals-grid">
@@ -233,10 +235,10 @@
                 <div class="comms-header">
                     <div class="comms-channel">
                         <span class="channel-indicator"></span>
-                        <span class="channel-name">SECURE NEURAL COMMS // PROTOCOL STARK-01</span>
+                        <span class="channel-name" id="lbl-comms-channel">ช่องทางสื่อสารปลอดภัย // โปรโตคอล STARK-01</span>
                     </div>
-                    <button class="comms-clear-btn" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
-                        CLEAR LOG
+                    <button class="comms-clear-btn" id="lbl-btn-comms-clear" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
+                        ล้างประวัติ
                     </button>
                 </div>
                 <div class="comms-messages" id="chat-messages">
@@ -260,42 +262,42 @@
 
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <span class="modal-tag">[STARK SYSTEM PROTOCOL]</span>
-                    <h3>INITIALIZE STRATEGIC DIRECTIVE</h3>
+                    <span class="modal-tag" id="lbl-modal-directive-tag">[โปรโตคอลระบบ STARK]</span>
+                    <h3 id="lbl-modal-directive-title">กำหนดยุทธการเชิงกลยุทธ์ใหม่</h3>
                 </div>
                 <button class="modal-close-btn" onclick="closeModal()">&times;</button>
             </div>
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="goal-title">DIRECTIVE CODENAME / TITLE *</label>
+                    <label for="goal-title" id="lbl-modal-goal-title">รหัสยุทธการ / ชื่อเป้าหมาย *</label>
                     <input type="text" id="goal-title" placeholder="เช่น ยุทธการยกระดับสุขภาพ 90 วัน, สอบใบรับรอง Cloud Architect" required>
                 </div>
                 <div class="form-group">
-                    <label for="goal-desc">STRATEGIC DESCRIPTION / OBJECTIVES</label>
+                    <label for="goal-desc" id="lbl-modal-goal-desc">รายละเอียดเชิงยุทธศาสตร์ / ผลลัพธ์ที่ต้องการ</label>
                     <textarea id="goal-desc" rows="3" placeholder="ระบุเป้าหมาย ผลลัพธ์ที่ต้องการ และแนวทางปฏิบัติ..."></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="goal-category">CLASSIFICATION / CATEGORY</label>
+                        <label for="goal-category" id="lbl-modal-goal-category">หมวดหมู่ภารกิจ</label>
                         <select id="goal-category">
-                            <option value="career">💼 CAREER & VENTURE</option>
-                            <option value="health">💪 PHYSICAL & COMBAT READY (HEALTH)</option>
-                            <option value="finance">💰 CAPITAL & WEALTH</option>
-                            <option value="education">📚 KNOWLEDGE & INTEL</option>
-                            <option value="personal">🌟 PERSONAL PROTOCOL</option>
+                            <option value="career">💼 การงานและธุรกิจ</option>
+                            <option value="health">💪 สุขภาพและการฟิตร่างกาย</option>
+                            <option value="finance">💰 การเงินและการลงทุน</option>
+                            <option value="education">📚 ความรู้และทักษะ</option>
+                            <option value="personal">🌟 พัฒนาตนเอง</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="goal-date">TARGET COMPLETION DATE</label>
+                        <label for="goal-date" id="lbl-modal-goal-date">วันที่เป้าหมายสำเร็จ</label>
                         <input type="date" id="goal-date">
                     </div>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="hud-btn" onclick="closeModal()">CANCEL</button>
-                <button class="hud-btn primary" onclick="createGoalManual()">CONFIRM DIRECTIVE</button>
+                <button class="hud-btn" id="btn-modal-goal-cancel" onclick="closeModal()">ยกเลิก</button>
+                <button class="hud-btn primary" id="btn-modal-goal-confirm" onclick="createGoalManual()">ยืนยันยุทธการ</button>
             </div>
         </div>
     </div>
@@ -310,8 +312,8 @@
 
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <span class="modal-tag">[STARK SYSTEM CONFIGURATION]</span>
-                    <h3 id="settings-title-text">SYSTEM PREFERENCES & PROTOCOLS</h3>
+                    <span class="modal-tag" id="lbl-settings-tag">[การกำหนดค่าระบบ STARK]</span>
+                    <h3 id="settings-title-text">การตั้งค่าระบบและโปรโตคอล</h3>
                 </div>
                 <button class="modal-close-btn" onclick="closeSettingsModal()">&times;</button>
             </div>
@@ -321,17 +323,17 @@
                 <div class="settings-card">
                     <div class="settings-card-title">
                         <span class="sec-icon">🌐</span>
-                        <span id="label-lang-sec">DISPLAY & AI LANGUAGE</span>
+                        <span id="label-lang-sec">ภาษาการแสดงผลและ AI</span>
                     </div>
                     <div class="form-group">
-                        <label for="setting-lang" id="label-lang-select">SYSTEM INTERFACE LANGUAGE</label>
+                        <label for="setting-lang" id="label-lang-select">ภาษาของระบบหน้าจอ (INTERFACE LANGUAGE)</label>
                         <select id="setting-lang" onchange="onSettingLanguageChange()">
                             <option value="th">🇹🇭 ภาษาไทย (Thai Default)</option>
                             <option value="en">🇬🇧 English (Stark Industries Default)</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="setting-callsign" id="label-callsign-select">USER CALL SIGN / สรรพนามเรียกผู้ใช้</label>
+                        <label for="setting-callsign" id="label-callsign-select">สรรพนามที่ AI ใช้เรียกท่าน (CALL SIGN)</label>
                         <select id="setting-callsign">
                             <option value="ท่าน">ท่าน (Sir - Thai Default)</option>
                             <option value="Sir">Sir (British Formal)</option>
@@ -346,10 +348,10 @@
                 <div class="settings-card">
                     <div class="settings-card-title">
                         <span class="sec-icon">🎙️</span>
-                        <span id="label-voice-sec">AUDIO & VOCAL ENGINE</span>
+                        <span id="label-voice-sec">ระบบเสียงและเสียงสังเคราะห์ AI</span>
                     </div>
                     <div class="form-group">
-                        <label for="setting-voice-model" id="label-voice-model">NEURAL VOICE SYNTHESIS</label>
+                        <label for="setting-voice-model" id="label-voice-model">โมเดลเสียงพากย์สังเคราะห์ (NEURAL VOICE)</label>
                         <select id="setting-voice-model">
                             <option value="th-TH-NiwatNeural">th-TH Niwat Neural (ชาย - สุขุม นุ่มลึก)</option>
                             <option value="th-TH-PremwadeeNeural">th-TH Premwadee Neural (หญิง - สุภาพ ชัดเจน)</option>
@@ -358,7 +360,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label id="label-auto-speech">AUTO-VOCALIZE RESPONSE</label>
+                        <label id="label-auto-speech">พูดตอบกลับด้วยเสียง AI อัตโนมัติ</label>
                         <div class="toggle-checkbox-row">
                             <input type="checkbox" id="setting-auto-vocalize" checked>
                             <label for="setting-auto-vocalize" id="label-auto-vocalize-sub">พูดตอบกลับอัตโนมัติด้วยเสียง AI ทุกครั้งที่ได้รับคำสั่ง</label>
@@ -370,10 +372,10 @@
                 <div class="settings-card">
                     <div class="settings-card-title">
                         <span class="sec-icon">🎨</span>
-                        <span id="label-theme-sec">HUD VISUAL AESTHETICS</span>
+                        <span id="label-theme-sec">ธีมภาพและสุนทรียศาสตร์ HUD</span>
                     </div>
                     <div class="form-group">
-                        <label id="label-color-palette">HUD COLOR PALETTE</label>
+                        <label id="label-color-palette">จานสีธีมหน้าจอ (HUD COLOR PALETTE)</label>
                         <div class="theme-picker-group">
                             <button class="theme-btn theme-cyan active" data-theme="cyan" onclick="setHUDTheme('cyan')">
                                 <span class="theme-dot" style="background:#00f0ff;"></span> STARK CYAN
@@ -392,7 +394,7 @@
                     <div class="form-group">
                         <div class="toggle-checkbox-row">
                             <input type="checkbox" id="setting-scanlines" checked onchange="toggleScanlines(this.checked)">
-                            <label for="setting-scanlines" id="label-scanlines-sub">CRT Scanlines & Hologram Grid Overlay</label>
+                            <label for="setting-scanlines" id="label-scanlines-sub">เส้นสแกน CRT และตารางฮอโลแกรม (SCANLINES & GRID)</label>
                         </div>
                     </div>
                 </div>
@@ -401,7 +403,7 @@
                 <div class="settings-card">
                     <div class="settings-card-title">
                         <span class="sec-icon">🛡️</span>
-                        <span id="label-data-sec">DATA MAINTENANCE & PROTOCOLS</span>
+                        <span id="label-data-sec">การจัดการข้อมูลและโปรโตคอล</span>
                     </div>
                     <div class="settings-action-buttons">
                         <button class="hud-btn" onclick="purgeCompletedOps()" id="btn-purge-ops">
@@ -416,8 +418,8 @@
             </div>
 
             <div class="modal-footer">
-                <button class="hud-btn" onclick="closeSettingsModal()" id="btn-settings-cancel">CLOSE</button>
-                <button class="hud-btn primary" onclick="saveSettings()" id="btn-settings-save">SAVE PREFERENCES</button>
+                <button class="hud-btn" onclick="closeSettingsModal()" id="btn-settings-cancel">ปิด</button>
+                <button class="hud-btn primary" onclick="saveSettings()" id="btn-settings-save">บันทึกการตั้งค่า</button>
             </div>
         </div>
     </div>

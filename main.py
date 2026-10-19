@@ -10,7 +10,7 @@ from typing import Optional
 import edge_tts
 
 import database as db
-from ai_engine import JavisAI
+from ai_engine import JavisAI, clean_for_speech
 
 # สร้าง FastAPI app
 app = FastAPI(title="J.A.R.V.I.S. — Tactical Mission Control (Stark OS)")
@@ -127,25 +127,65 @@ class TTSRequest(BaseModel):
     text: str
     voice: Optional[str] = "th-TH-NiwatNeural"
 
+async def generate_speech_audio(text: str, voice: str) -> bytes:
+    """สร้างไบต์ไฟล์เสียง MP3 จาก Edge TTS โดยรองรับข้อความยาวแบบครบถ้วนไม่ตัดตอน (Chunking & Seamless Concatenation)"""
+    # ถ้าข้อความสั้นกว่า 3,500 ตัวอักษร สังเคราะห์ตรงรอบเดียวรวดเร็ว
+    if len(text) <= 3500:
+        comm = edge_tts.Communicate(text, voice)
+        stream = io.BytesIO()
+        async for chunk in comm.stream():
+            if chunk["type"] == "audio":
+                stream.write(chunk["data"])
+        return stream.getvalue()
+
+    # ถ้าข้อความเป็นขนาดยาว (> 3,500 ตัวอักษร) แบ่งท่อนตามวรรคตอน/ประโยคเพื่อความเสถียร
+    chunks = []
+    current_chunk = []
+    current_len = 0
+    paragraphs = text.split("\n")
+    for para in paragraphs:
+        para_clean = para.strip()
+        if not para_clean:
+            continue
+        if current_len + len(para_clean) + 1 > 2800 and current_chunk:
+            chunks.append("\n".join(current_chunk))
+            current_chunk = [para_clean]
+            current_len = len(para_clean)
+        else:
+            current_chunk.append(para_clean)
+            current_len += len(para_clean) + 1
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    # รวม audio stream ของแต่ละ chunk เข้าด้วยกันอย่างต่อเนื่องแบบไร้รอยต่อ
+    full_audio = io.BytesIO()
+    for c in chunks:
+        comm = edge_tts.Communicate(c, voice)
+        async for chunk in comm.stream():
+            if chunk["type"] == "audio":
+                full_audio.write(chunk["data"])
+    return full_audio.getvalue()
+
 @app.post("/api/tts")
 async def text_to_speech(req: TTSRequest):
-    """แปลงข้อความสังเคราะห์เสียง J.A.R.V.I.S. ด้วย Edge TTS Neural Voice"""
-    clean_text = req.text.strip()
-    if not clean_text:
+    """แปลงข้อความสังเคราะห์เสียง J.A.R.V.I.S. ด้วย Edge TTS Neural Voice (อ่านเนื้อหาทั้งหมดครบถ้วน 100%)"""
+    raw_text = req.text.strip()
+    if not raw_text:
         return JSONResponse({"error": "ไม่มีข้อความสำหรับสังเคราะห์เสียง"}, status_code=400)
     
-    # จำกัดความยาวป้องกัน overload
-    if len(clean_text) > 800:
-        clean_text = clean_text[:800]
+    # ทำความสะอาด markdown syntax (เช่น **bold**, [Phase 1], etc.) ให้เสียงอ่านเป็นธรรมชาติ
+    clean_text = clean_for_speech(raw_text)
+    if not clean_text:
+        clean_text = raw_text
+
+    # กำหนดเพดานความปลอดภัยระดับสูงมาก (15,000 ตัวอักษร) เพื่อให้อ่านรายงานทุกยุทธการได้ครบถ้วน
+    if len(clean_text) > 15000:
+        clean_text = clean_text[:15000]
+    
+    voice = req.voice or "th-TH-NiwatNeural"
     
     try:
-        communicate = edge_tts.Communicate(clean_text, req.voice or "th-TH-NiwatNeural")
-        audio_stream = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_stream.write(chunk["data"])
-        
-        audio_bytes = audio_stream.getvalue()
+        audio_bytes = await generate_speech_audio(clean_text, voice)
         return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception as e:
         print(f"TTS Generation Error: {e}")

@@ -13,12 +13,195 @@ const API = {
     dashboard: '/api/dashboard',
 };
 
+// User Preferences & Settings (Stored in LocalStorage)
+const userSettings = {
+    language: 'th', // 'th' | 'en'
+    callsign: 'ท่าน',
+    voiceModel: 'th-TH-NiwatNeural',
+    autoVocalize: true,
+    theme: 'cyan', // 'cyan' | 'gold' | 'emerald' | 'purple'
+    scanlines: true,
+};
+
+// Multilingual Dictionary for HUD
+const I18N = {
+    th: {
+        brandSub: 'J.A.R.V.I.S. <span class="version-tag">OS v10.4</span>',
+        systemNominal: 'ระบบทั้งหมดพร้อมปฏิบัติการ',
+        navDashboard: 'ศูนย์บัญชาการภารกิจ',
+        navGoals: 'ผังยุทธการหลัก',
+        navChat: 'บันทึกการสื่อสาร',
+        toggleSfx: 'เอฟเฟกต์',
+        toggleVoice: 'เสียง AI',
+        toggleConfig: 'ตั้งค่าระบบ',
+        clockZone: 'ICT // เวลาประจำการ',
+        telemetryDirectives: 'ยุทธการหลัก:',
+        telemetryTodayOps: "ภารกิจวันนี้:",
+        telemetryEfficiency: 'ประสิทธิภาพเตาปฏิกรณ์:',
+        telemetryStreak: 'ความต่อเนื่องภารกิจ:',
+        telemetryNeural: 'ระบบประมวลผล:',
+        telemetryNeuralVal: 'GEMINI FLASH ออนไลน์',
+        days: 'วัน',
+        active: 'กำลังดำเนินการ',
+        briefingBtn: 'โปรโตคอล: รายงานสรุปประจำวัน',
+        statusScanBtn: 'สแกนสถานะยุทธการ',
+        newDirectiveBtn: 'สร้างยุทธการใหม่',
+        strategicAdviceBtn: 'คำแนะนำเชิงกลยุทธ์',
+        statusScanPrompt: 'รายงานสถานะ Directives ปัจจุบันและความคืบหน้าครับ จาวิส',
+        advicePrompt: 'ขอคำแนะนำเชิงยุทธศาสตร์เพื่อเพิ่มประสิทธิภาพการทำงานวันนี้ครับ',
+        terminalPlaceholder: "สั่งการ J.A.R.V.I.S. หรือระบุยุทธการที่ต้องการ (เช่น 'วางแผนฟิตหุ่น', '/briefing')...",
+        transmitBtn: 'ส่งคำสั่ง',
+        directivesPanelTag: '[ยุทธการหลัก]',
+        directivesPanelTitle: 'ยุทธการเชิงกลยุทธ์',
+        directivesExpandLink: 'ดูผังยุทธการทั้งหมด →',
+        operationsPanelTag: '[ภารกิจวันนี้]',
+        operationsPanelTitle: 'ปฏิบัติการประจำวัน',
+        pendingBadge: 'ภารกิจคงค้าง',
+        emptyDirectivesTitle: 'ยังไม่มีการกำหนดยุทธการหลัก',
+        emptyDirectivesDesc: "สั่งการ J.A.R.V.I.S. หรือกด 'สร้างยุทธการใหม่' เพื่อเริ่มภารกิจแรก",
+        emptyOpsTitle: 'ไม่มีภารกิจคงค้างสำหรับวันนี้',
+        emptyOpsDesc: 'ทุกยุทธการพร้อมรับคำสั่งการใหม่จากท่านครับ',
+        matrixPanelTag: '[ผังยุทธการ]',
+        matrixTitle: 'ภาพรวมยุทธการเชิงกลยุทธ์ทั้งหมด',
+        newDirectiveMatrixBtn: '+ เพิ่มยุทธการใหม่',
+        matrixEfficiencyLabel: 'ดัชนีความสำเร็จ',
+        matrixTasksLabel: 'ภารกิจปฏิบัติการ',
+        commsChannelName: 'ช่องทางสื่อสารปลอดภัย // โปรโตคอล STARK-01',
+        commsClearBtn: 'ล้างประวัติ',
+        reactorStandby: 'สแตนด์บาย // พร้อมรับคำสั่ง',
+        reactorClickMic: 'กดไมค์หรือพิมพ์คำสั่งเพื่อสั่งการ',
+        reactorListening: 'กำลังรับฟัง // รับสัญญาณเสียง',
+        reactorSpeakNow: 'ระบุคำสั่งการของท่านได้เลยครับ',
+        reactorComputing: 'กำลังประมวลผล // วิเคราะห์ยุทธการ',
+        reactorSimulation: 'กำลังจำลองระบบประสาทเทียม...',
+        reactorSpeaking: 'กำลังอ่านออกเสียง // ตอบกลับด้วยเสียง AI',
+        reactorVocalizing: 'J.A.R.V.I.S. กำลังตอบกลับคำสั่งการ',
+        welcomeMsg: 'สวัสดีครับท่าน ผม J.A.R.V.I.S. ประจำการพร้อมสนับสนุนยุทธการและการวางแผนทั้งหมดของท่านครับ วันนี้มีภารกิจใดให้ผมรับใช้ครับ?',
+        modalDirectiveTag: '[โปรโตคอลระบบ STARK]',
+        modalDirectiveTitle: 'กำหนดยุทธการเชิงกลยุทธ์ใหม่',
+        modalDirectiveTitleLabel: 'รหัสยุทธการ / ชื่อเป้าหมาย *',
+        modalDirectiveTitlePh: 'เช่น ยุทธการยกระดับสุขภาพ 90 วัน, สอบใบรับรอง Cloud Architect',
+        modalDirectiveDescLabel: 'รายละเอียดเชิงยุทธศาสตร์ / ผลลัพธ์ที่ต้องการ',
+        modalDirectiveDescPh: 'ระบุเป้าหมาย ผลลัพธ์ที่ต้องการ และแนวทางปฏิบัติ...',
+        modalDirectiveCatLabel: 'หมวดหมู่ภารกิจ',
+        modalDirectiveDateLabel: 'วันที่เป้าหมายสำเร็จ',
+        modalDirectiveCancel: 'ยกเลิก',
+        modalDirectiveConfirm: 'ยืนยันยุทธการ',
+        modalSettingsTag: '[การกำหนดค่าระบบ STARK]',
+        modalSettingsTitle: 'การตั้งค่าระบบและโปรโตคอล',
+        modalSettingsLangSec: 'ภาษาการแสดงผลและ AI',
+        modalSettingsLangSelect: 'ภาษาของระบบหน้าจอ (INTERFACE LANGUAGE)',
+        modalSettingsCallsignSelect: 'สรรพนามที่ AI ใช้เรียกท่าน (CALL SIGN)',
+        modalSettingsVoiceSec: 'ระบบเสียงและเสียงพากย์ AI',
+        modalSettingsVoiceModel: 'โมเดลเสียงพากย์สังเคราะห์ (NEURAL VOICE)',
+        modalSettingsAutoSpeech: 'พูดตอบกลับด้วยเสียง AI อัตโนมัติ',
+        modalSettingsAutoSpeechSub: 'พูดตอบกลับอัตโนมัติด้วยเสียง AI ทุกครั้งที่ได้รับคำสั่ง',
+        modalSettingsThemeSec: 'ธีมภาพและสุนทรียศาสตร์ HUD',
+        modalSettingsColorPalette: 'จานสีธีมหน้าจอ (HUD COLOR PALETTE)',
+        modalSettingsScanlines: 'เส้นตารางฮอโลแกรมแบบละเอียด (GRID OVERLAY)',
+        modalSettingsDataSec: 'การบำรุงรักษาข้อมูลและโปรโตคอล',
+        modalSettingsPurgeOps: 'ล้างภารกิจที่ทำเสร็จแล้ว (PURGE COMPLETED)',
+        modalSettingsPurgeComms: 'ล้างประวัติ COMMS LOG ทั้งหมด',
+        modalSettingsClose: 'ปิด',
+        modalSettingsSave: 'บันทึกการตั้งค่า'
+    },
+    en: {
+        brandSub: 'J.A.R.V.I.S. <span class="version-tag">OS v10.4</span>',
+        systemNominal: 'ALL SYSTEMS NOMINAL',
+        navDashboard: 'MISSION CONTROL',
+        navGoals: 'DIRECTIVES MATRIX',
+        navChat: 'COMMS LOG',
+        toggleSfx: 'SFX',
+        toggleVoice: 'VOICE',
+        toggleConfig: 'CONFIG',
+        clockZone: 'ICT // STARK TIME',
+        telemetryDirectives: 'DIRECTIVES:',
+        telemetryTodayOps: "TODAY'S OPS:",
+        telemetryEfficiency: 'ARC CORE EFFICIENCY:',
+        telemetryStreak: 'STREAK PROTOCOL:',
+        telemetryNeural: 'NEURAL ENGINE:',
+        telemetryNeuralVal: 'GEMINI FLASH ONLINE',
+        days: 'DAYS',
+        active: 'ACTIVE',
+        briefingBtn: 'PROTOCOL: DAILY BRIEFING',
+        statusScanBtn: 'STATUS SCAN',
+        newDirectiveBtn: 'NEW DIRECTIVE',
+        strategicAdviceBtn: 'STRATEGIC ADVISORY',
+        statusScanPrompt: 'Report current status of all active directives and tactical progress, Jarvis.',
+        advicePrompt: 'Provide high-level strategic advisory to maximize operational output today, Jarvis.',
+        terminalPlaceholder: "Transmit directive to J.A.R.V.I.S. (e.g. 'Plan 10K Marathon Training', '/briefing')...",
+        transmitBtn: 'TRANSMIT',
+        directivesPanelTag: '[DIRECTIVES]',
+        directivesPanelTitle: 'STRATEGIC DIRECTIVES',
+        directivesExpandLink: 'EXPAND MATRIX →',
+        operationsPanelTag: '[OPERATIONS]',
+        operationsPanelTitle: "TODAY'S TACTICAL OPS",
+        pendingBadge: 'PENDING',
+        emptyDirectivesTitle: 'NO ACTIVE DIRECTIVES INITIALIZED',
+        emptyDirectivesDesc: "Transmit a directive to J.A.R.V.I.S. or click 'NEW DIRECTIVE' to begin.",
+        emptyOpsTitle: 'NO IMMEDIATE OPERATIONS FOR TODAY',
+        emptyOpsDesc: 'All systems standing by for your directive, Sir.',
+        matrixPanelTag: '[MISSION MATRIX]',
+        matrixTitle: 'STRATEGIC DIRECTIVES OVERVIEW',
+        newDirectiveMatrixBtn: '+ INITIALIZE NEW DIRECTIVE',
+        matrixEfficiencyLabel: 'TACTICAL EFFICIENCY',
+        matrixTasksLabel: 'TACTICAL OPERATIONS',
+        commsChannelName: 'SECURE NEURAL COMMS // PROTOCOL STARK-01',
+        commsClearBtn: 'CLEAR LOG',
+        reactorStandby: 'STANDBY // READY',
+        reactorClickMic: 'CLICK MIC OR TRANSMIT COMMAND',
+        reactorListening: 'LISTENING // AUDIO INPUT',
+        reactorSpeakNow: 'SPEAK YOUR DIRECTIVE NOW, SIR',
+        reactorComputing: 'COMPUTING // PROCESSING DIRECTIVE',
+        reactorSimulation: 'RUNNING NEURAL SIMULATION...',
+        reactorSpeaking: 'SPEAKING // NEURAL AUDIO',
+        reactorVocalizing: 'J.A.R.V.I.S. VOCALIZING DIRECTIVE',
+        welcomeMsg: 'Good day, Sir. J.A.R.V.I.S. online and standing by. How may I assist your directives today?',
+        modalDirectiveTag: '[STARK SYSTEM PROTOCOL]',
+        modalDirectiveTitle: 'INITIALIZE STRATEGIC DIRECTIVE',
+        modalDirectiveTitleLabel: 'DIRECTIVE CODENAME / TITLE *',
+        modalDirectiveTitlePh: 'e.g. 90-Day Athletic Reconditioning, AWS Solutions Architect',
+        modalDirectiveDescLabel: 'STRATEGIC DESCRIPTION / OBJECTIVES',
+        modalDirectiveDescPh: 'Specify goals, required milestones, and action items...',
+        modalDirectiveCatLabel: 'CLASSIFICATION / CATEGORY',
+        modalDirectiveDateLabel: 'TARGET COMPLETION DATE',
+        modalDirectiveCancel: 'CANCEL',
+        modalDirectiveConfirm: 'CONFIRM DIRECTIVE',
+        modalSettingsTag: '[STARK SYSTEM CONFIGURATION]',
+        modalSettingsTitle: 'SYSTEM PREFERENCES & PROTOCOLS',
+        modalSettingsLangSec: 'DISPLAY & AI LANGUAGE',
+        modalSettingsLangSelect: 'SYSTEM INTERFACE LANGUAGE',
+        modalSettingsCallsignSelect: 'USER CALL SIGN / HONORIFIC',
+        modalSettingsVoiceSec: 'AUDIO & VOCAL ENGINE',
+        modalSettingsVoiceModel: 'NEURAL VOICE SYNTHESIS',
+        modalSettingsAutoSpeech: 'AUTO-VOCALIZE RESPONSE',
+        modalSettingsAutoSpeechSub: 'Automatically vocalize AI responses upon command receipt',
+        modalSettingsThemeSec: 'HUD VISUAL AESTHETICS',
+        modalSettingsColorPalette: 'HUD COLOR PALETTE',
+        modalSettingsScanlines: 'CRT Scanlines & Hologram Grid Overlay',
+        modalSettingsDataSec: 'DATA MAINTENANCE & PROTOCOLS',
+        modalSettingsPurgeOps: 'PURGE COMPLETED OPS',
+        modalSettingsPurgeComms: 'CLEAR ALL COMMS LOG',
+        modalSettingsClose: 'CLOSE',
+        modalSettingsSave: 'SAVE PREFERENCES'
+    }
+};
+
 const CATEGORY_NAMES = {
-    health: 'COMBAT & HEALTH',
-    career: 'CAREER & VENTURE',
-    finance: 'CAPITAL & WEALTH',
-    education: 'KNOWLEDGE & INTEL',
-    personal: 'PERSONAL PROTOCOL',
+    th: {
+        health: 'สุขภาพและการฟิตร่างกาย',
+        career: 'การงานและธุรกิจ',
+        finance: 'การเงินและการลงทุน',
+        education: 'ความรู้และทักษะ',
+        personal: 'พัฒนาตนเอง',
+    },
+    en: {
+        health: 'COMBAT & HEALTH',
+        career: 'CAREER & VENTURE',
+        finance: 'CAPITAL & WEALTH',
+        education: 'KNOWLEDGE & INTEL',
+        personal: 'PERSONAL PROTOCOL',
+    }
 };
 
 const CATEGORY_ICONS = {
@@ -30,10 +213,29 @@ const CATEGORY_ICONS = {
 };
 
 const FREQ_LABELS = {
-    daily: 'DAILY OP',
-    weekly: 'WEEKLY OP',
-    'one-time': 'TACTICAL',
+    th: {
+        daily: 'ประจำวัน',
+        weekly: 'ประจำสัปดาห์',
+        'one-time': 'เฉพาะกิจ',
+    },
+    en: {
+        daily: 'DAILY OP',
+        weekly: 'WEEKLY OP',
+        'one-time': 'TACTICAL',
+    }
 };
+
+function getCategoryName(cat) {
+    const lang = userSettings.language || 'th';
+    const dict = CATEGORY_NAMES[lang] || CATEGORY_NAMES.th;
+    return dict[cat] || cat;
+}
+
+function getFrequencyLabel(freq) {
+    const lang = userSettings.language || 'th';
+    const dict = FREQ_LABELS[lang] || FREQ_LABELS.th;
+    return dict[freq] || freq;
+}
 
 // System Global State
 let currentView = 'dashboard';
@@ -81,9 +283,7 @@ function playBeep(freq = 880, duration = 0.08, type = 'sine') {
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {
-        // Audio policy ignore
-    }
+    } catch (e) {}
 }
 
 function playTacticalSweep() {
@@ -111,7 +311,6 @@ function playConfirmChime() {
         initAudioContext();
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
-        // Two-tone high tech chime
         [987.77, 1318.51].forEach((freq, idx) => {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -170,9 +369,17 @@ function drawArcReactor() {
         audioEnergy = (sum / dataArray.length) / 255;
     }
 
-    // State Colors
-    let primaryColor = '#00f0ff';
-    let glowColor = 'rgba(0, 240, 255, 0.4)';
+    // Dynamic Theme Color Mapping
+    const themePalettes = {
+        cyan: { primary: '#00f0ff', glow: 'rgba(0, 240, 255, 0.4)' },
+        gold: { primary: '#ffaa00', glow: 'rgba(255, 170, 0, 0.45)' },
+        emerald: { primary: '#00ff9d', glow: 'rgba(0, 255, 157, 0.45)' },
+        purple: { primary: '#c044ff', glow: 'rgba(192, 68, 255, 0.45)' }
+    };
+    const activePalette = themePalettes[userSettings.theme] || themePalettes.cyan;
+
+    let primaryColor = activePalette.primary;
+    let glowColor = activePalette.glow;
     let speed = 0.015;
 
     if (isListening) {
@@ -180,11 +387,10 @@ function drawArcReactor() {
         glowColor = 'rgba(255, 170, 0, 0.6)';
         speed = 0.04;
     } else if (isComputing) {
-        primaryColor = '#00ffff';
-        glowColor = 'rgba(0, 255, 255, 0.8)';
+        primaryColor = '#ffffff';
+        glowColor = 'rgba(255, 255, 255, 0.8)';
         speed = 0.07;
     } else if (isSpeaking) {
-        primaryColor = '#00e1ff';
         glowColor = `rgba(0, 240, 255, ${0.4 + audioEnergy * 0.5})`;
         speed = 0.02 + audioEnergy * 0.04;
     }
@@ -236,7 +442,7 @@ function drawArcReactor() {
     }
     ctx.restore();
 
-    // 4. Power Cells Ring (10 Triangular/Trapezoid cells of the Arc Reactor)
+    // 4. Power Cells Ring (10 cells)
     ctx.save();
     ctx.rotate(reactorAngle);
     const cells = 10;
@@ -256,7 +462,6 @@ function drawArcReactor() {
         ctx.fill();
         ctx.stroke();
 
-        // Inner glowing copper/cyan coil
         ctx.beginPath();
         ctx.rect(-3, -7, 6, 14);
         ctx.fillStyle = primaryColor;
@@ -291,7 +496,7 @@ function drawArcReactor() {
     ctx.shadowBlur = 25;
     ctx.fill();
 
-    // 7. Core Energy Crosshair / Reticle
+    // 7. Core Energy Reticle
     ctx.beginPath();
     ctx.moveTo(-15, 0); ctx.lineTo(15, 0);
     ctx.moveTo(0, -15); ctx.lineTo(0, 15);
@@ -306,7 +511,7 @@ function drawArcReactor() {
 // Start Reactor animation loop
 requestAnimationFrame(drawArcReactor);
 
-// Click reactor to trigger briefing or voice
+// Click reactor to trigger briefing
 canvas.addEventListener('click', () => {
     playBeep(1200, 0.05);
     runBriefingProtocol();
@@ -324,12 +529,13 @@ function setupSpeechRecognition() {
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'th-TH';
+    recognition.lang = userSettings.language === 'en' ? 'en-US' : 'th-TH';
 
     recognition.onstart = () => {
         isListening = true;
         document.getElementById('btn-mic')?.classList.add('listening');
-        setReactorState('LISTENING // AUDIO INPUT', 'SPEAK YOUR DIRECTIVE NOW, SIR');
+        const t = I18N[userSettings.language] || I18N.th;
+        setReactorState(t.reactorListening, t.reactorSpeakNow);
         playBeep(1000, 0.1);
     };
 
@@ -358,7 +564,7 @@ function toggleVoiceInput() {
         setupSpeechRecognition();
     }
     if (!recognition) {
-        alert('เบราว์เซอร์ของคุณยังไม่รองรับ Speech Recognition ครับท่าน แนะนำให้พิมพ์คำสั่งแทนครับ');
+        alert(userSettings.language === 'en' ? 'Speech Recognition is not supported on this browser.' : 'เบราว์เซอร์ของคุณยังไม่รองรับ Speech Recognition ครับท่าน แนะนำให้พิมพ์คำสั่งแทนครับ');
         return;
     }
 
@@ -367,6 +573,7 @@ function toggleVoiceInput() {
         stopListening();
     } else {
         try {
+            recognition.lang = userSettings.language === 'en' ? 'en-US' : 'th-TH';
             recognition.start();
         } catch (e) {
             recognition.stop();
@@ -377,7 +584,8 @@ function toggleVoiceInput() {
 function stopListening() {
     isListening = false;
     document.getElementById('btn-mic')?.classList.remove('listening');
-    setReactorState('STANDBY // READY', 'CLICK MIC OR TRANSMIT COMMAND');
+    const t = I18N[userSettings.language] || I18N.th;
+    setReactorState(t.reactorStandby, t.reactorClickMic);
 }
 
 // ==================== SPEECH SYNTHESIS (VOICE OUTPUT) ====================
@@ -385,18 +593,21 @@ function stopListening() {
 const audioElement = document.getElementById('jarvis-audio-player');
 
 async function speakJarvis(text) {
-    if (!voiceEnabled || !text) return;
+    if (!voiceEnabled || !text || userSettings.autoVocalize === false) return;
 
     try {
         initAudioContext();
-        setReactorState('SPEAKING // NEURAL AUDIO', 'J.A.R.V.I.S. VOCALIZING DIRECTIVE');
+        const t = I18N[userSettings.language] || I18N.th;
+        setReactorState(t.reactorSpeaking, t.reactorVocalizing);
         isSpeaking = true;
 
-        // Try backend high-fidelity Edge-TTS Niwat Neural voice
+        const voiceModel = userSettings.voiceModel || (userSettings.language === 'en' ? 'en-GB-RyanNeural' : 'th-TH-NiwatNeural');
+
+        // Call backend high-fidelity Edge-TTS Neural Voice
         const res = await fetch(API.tts, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
+            body: JSON.stringify({ text: text, voice: voiceModel })
         });
 
         if (res.ok) {
@@ -404,19 +615,17 @@ async function speakJarvis(text) {
             const audioUrl = URL.createObjectURL(blob);
             audioElement.src = audioUrl;
 
-            // Connect to Web Audio Analyser if not already connected
+            // Connect to Web Audio Analyser if not connected
             if (audioCtx && !audioSourceNode) {
                 try {
                     audioSourceNode = audioCtx.createMediaElementSource(audioElement);
                     audioSourceNode.connect(audioAnalyser);
-                } catch (e) {
-                    // Node already connected
-                }
+                } catch (e) {}
             }
 
             audioElement.onended = () => {
                 isSpeaking = false;
-                setReactorState('STANDBY // READY', 'ALL SYSTEMS NOMINAL');
+                setReactorState(t.reactorStandby, t.systemNominal);
                 URL.revokeObjectURL(audioUrl);
             };
 
@@ -430,7 +639,7 @@ async function speakJarvis(text) {
             fallbackSpeechSynthesis(text);
         }
     } catch (err) {
-        console.warn('Backend TTS failed, trying browser fallback:', err);
+        console.warn('Backend TTS failed, using browser fallback:', err);
         fallbackSpeechSynthesis(text);
     }
 }
@@ -438,14 +647,15 @@ async function speakJarvis(text) {
 function fallbackSpeechSynthesis(text) {
     if (!('speechSynthesis' in window)) {
         isSpeaking = false;
-        setReactorState('STANDBY // READY', 'READY');
+        const t = I18N[userSettings.language] || I18N.th;
+        setReactorState(t.reactorStandby, 'READY');
         return;
     }
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH';
-    utterance.rate = 1.05;
+    utterance.lang = userSettings.language === 'en' ? 'en-GB' : 'th-TH';
+    utterance.rate = 1.02;
     utterance.pitch = 0.95;
 
     utterance.onstart = () => {
@@ -454,12 +664,14 @@ function fallbackSpeechSynthesis(text) {
 
     utterance.onend = () => {
         isSpeaking = false;
-        setReactorState('STANDBY // READY', 'ALL SYSTEMS NOMINAL');
+        const t = I18N[userSettings.language] || I18N.th;
+        setReactorState(t.reactorStandby, t.systemNominal);
     };
 
     utterance.onerror = () => {
         isSpeaking = false;
-        setReactorState('STANDBY // READY', 'READY');
+        const t = I18N[userSettings.language] || I18N.th;
+        setReactorState(t.reactorStandby, 'READY');
     };
 
     window.speechSynthesis.speak(utterance);
@@ -472,9 +684,425 @@ function setReactorState(title, subtitle) {
     if (subEl) subEl.textContent = subtitle;
 }
 
+// ==================== SETTINGS & I18N ENGINE ====================
+
+function loadSettingsFromStorage() {
+    try {
+        const stored = localStorage.getItem('stark_hud_settings');
+        if (stored) {
+            Object.assign(userSettings, JSON.parse(stored));
+        }
+    } catch (e) {}
+    applySettingsToDOM();
+}
+
+function applySettingsToDOM() {
+    // 1. Theme
+    document.body.setAttribute('data-theme', userSettings.theme || 'cyan');
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === userSettings.theme);
+    });
+
+    // 2. Scanlines
+    toggleScanlines(userSettings.scanlines !== false);
+    const scanlineCheckbox = document.getElementById('setting-scanlines');
+    if (scanlineCheckbox) scanlineCheckbox.checked = userSettings.scanlines !== false;
+
+    // 3. Settings controls
+    const langSelect = document.getElementById('setting-lang');
+    if (langSelect) langSelect.value = userSettings.language || 'th';
+
+    const callsignSelect = document.getElementById('setting-callsign');
+    if (callsignSelect) callsignSelect.value = userSettings.callsign || 'ท่าน';
+
+    const voiceSelect = document.getElementById('setting-voice-model');
+    if (voiceSelect) voiceSelect.value = userSettings.voiceModel || (userSettings.language === 'en' ? 'en-GB-RyanNeural' : 'th-TH-NiwatNeural');
+
+    const autoVocalize = document.getElementById('setting-auto-vocalize');
+    if (autoVocalize) autoVocalize.checked = userSettings.autoVocalize !== false;
+
+    // 4. Update UI Language labels
+    updateUILanguage(userSettings.language || 'th');
+}
+
+function updateUILanguage(lang) {
+    const t = I18N[lang] || I18N.th;
+
+    // 1. Navigation
+    const navDash = document.querySelector('#nav-dashboard .nav-label');
+    if (navDash) navDash.textContent = t.navDashboard;
+
+    const navGoals = document.querySelector('#nav-goals .nav-label');
+    if (navGoals) navGoals.textContent = t.navGoals;
+
+    const navChat = document.querySelector('#nav-chat .nav-label');
+    if (navChat) navChat.textContent = t.navChat;
+
+    // 2. System Status Badge
+    const statusText = document.getElementById('system-status-text');
+    if (statusText) statusText.textContent = t.systemNominal;
+
+    const systemBadge = document.getElementById('system-badge');
+    if (systemBadge) systemBadge.title = lang === 'en' ? 'All Systems Nominal' : 'สถานะระบบปกติ';
+
+    // 3. Controls & Clock
+    const sfxBtnText = document.querySelector('#btn-toggle-sfx .toggle-text');
+    if (sfxBtnText) sfxBtnText.textContent = t.toggleSfx;
+    document.getElementById('btn-toggle-sfx')?.removeAttribute('title');
+
+    const voiceBtnText = document.querySelector('#btn-toggle-voice .toggle-text');
+    if (voiceBtnText) voiceBtnText.textContent = t.toggleVoice;
+    document.getElementById('btn-toggle-voice')?.removeAttribute('title');
+
+    const configBtnText = document.querySelector('#btn-open-settings .toggle-text');
+    if (configBtnText) configBtnText.textContent = t.toggleConfig;
+    document.getElementById('btn-open-settings')?.removeAttribute('title');
+
+    const clockZone = document.querySelector('.clock-display .time-zone');
+    if (clockZone) clockZone.textContent = t.clockZone;
+
+    // 4. Telemetry Bar Labels
+    const lblTDirectives = document.getElementById('lbl-t-directives');
+    if (lblTDirectives) lblTDirectives.textContent = t.telemetryDirectives;
+
+    const lblTTodayOps = document.getElementById('lbl-t-today-ops');
+    if (lblTTodayOps) lblTTodayOps.textContent = t.telemetryTodayOps;
+
+    const lblTEfficiency = document.getElementById('lbl-t-efficiency');
+    if (lblTEfficiency) lblTEfficiency.textContent = t.telemetryEfficiency;
+
+    const lblTStreak = document.getElementById('lbl-t-streak');
+    if (lblTStreak) lblTStreak.textContent = t.telemetryStreak;
+
+    const lblTNeural = document.getElementById('lbl-t-neural');
+    if (lblTNeural) lblTNeural.textContent = t.telemetryNeural;
+
+    const valTNeural = document.getElementById('t-neural');
+    if (valTNeural) valTNeural.textContent = lang === 'en' ? 'GEMINI-FLASH ACTIVE' : 'GEMINI-FLASH พร้อมใช้งาน';
+
+    // 5. Quick Protocol Chips
+    const briefingChip = document.querySelector('#btn-protocol-briefing .chip-text');
+    if (briefingChip) briefingChip.textContent = t.briefingBtn;
+
+    const scanChip = document.getElementById('chip-scan-text');
+    if (scanChip) scanChip.textContent = t.statusScanBtn;
+
+    const newDirectiveChip = document.getElementById('chip-new-text');
+    if (newDirectiveChip) newDirectiveChip.textContent = t.newDirectiveBtn;
+
+    const adviceChip = document.getElementById('chip-advice-text');
+    if (adviceChip) adviceChip.textContent = t.strategicAdviceBtn;
+
+    // 6. Command Input & Transmit Button
+    const micBtn = document.getElementById('btn-mic');
+    if (micBtn) micBtn.title = lang === 'en' ? 'Speech Recognition Transmission' : 'กดเพื่อสั่งงานด้วยเสียง (Speech Input)';
+
+    const commandInput = document.getElementById('hud-command-input');
+    if (commandInput) commandInput.placeholder = t.terminalPlaceholder;
+
+    const transmitBtnText = document.getElementById('lbl-btn-transmit') || document.querySelector('#btn-transmit span');
+    if (transmitBtnText) transmitBtnText.textContent = t.transmitBtn;
+
+    // 7. Dashboard Panels
+    const panelDirectivesTag = document.getElementById('lbl-panel-directives-tag');
+    if (panelDirectivesTag) panelDirectivesTag.textContent = t.directivesPanelTag;
+
+    const panelDirectivesTitle = document.getElementById('lbl-panel-directives-title') || document.querySelector('#panel-directives h2');
+    if (panelDirectivesTitle) panelDirectivesTitle.textContent = t.directivesPanelTitle;
+
+    const expandLink = document.getElementById('lbl-panel-directives-link');
+    if (expandLink) expandLink.textContent = t.directivesExpandLink;
+
+    const panelOpsTag = document.getElementById('lbl-panel-ops-tag');
+    if (panelOpsTag) panelOpsTag.textContent = t.operationsPanelTag;
+
+    const panelOpsTitle = document.getElementById('lbl-panel-ops-title') || document.querySelector('#panel-operations h2');
+    if (panelOpsTitle) panelOpsTitle.textContent = t.operationsPanelTitle;
+
+    // Empty state update if present
+    const emptyDirectivesTitle = document.querySelector('#panel-directives .empty-title');
+    if (emptyDirectivesTitle) emptyDirectivesTitle.textContent = t.emptyDirectivesTitle;
+    const emptyDirectivesDesc = document.querySelector('#panel-directives .empty-desc');
+    if (emptyDirectivesDesc) emptyDirectivesDesc.textContent = t.emptyDirectivesDesc;
+
+    const emptyOpsTitle = document.querySelector('#panel-operations .empty-title');
+    if (emptyOpsTitle) emptyOpsTitle.textContent = t.emptyOpsTitle;
+    const emptyOpsDesc = document.querySelector('#panel-operations .empty-desc');
+    if (emptyOpsDesc) emptyOpsDesc.textContent = t.emptyOpsDesc;
+
+    // 8. Directives Matrix (Tab 2)
+    const matrixTag = document.getElementById('lbl-matrix-tag');
+    if (matrixTag) matrixTag.textContent = t.matrixPanelTag;
+
+    const matrixHeaderTitle = document.getElementById('lbl-matrix-title');
+    if (matrixHeaderTitle) matrixHeaderTitle.textContent = t.matrixTitle;
+
+    const btnMatrixNew = document.getElementById('lbl-btn-matrix-new');
+    if (btnMatrixNew) btnMatrixNew.textContent = t.newDirectiveMatrixBtn;
+
+    // 9. Comms Log (Tab 3)
+    const commsChannel = document.getElementById('lbl-comms-channel');
+    if (commsChannel) commsChannel.textContent = t.commsChannelName;
+
+    const commsClearBtn = document.getElementById('lbl-btn-comms-clear');
+    if (commsClearBtn) commsClearBtn.textContent = t.commsClearBtn;
+
+    // 10. Reactor Standby State
+    if (!isListening && !isComputing && !isSpeaking) {
+        setReactorState(t.reactorStandby, t.reactorClickMic);
+    }
+
+    // 11. Modal: New Directive
+    const lblModalDirectiveTag = document.getElementById('lbl-modal-directive-tag');
+    if (lblModalDirectiveTag) lblModalDirectiveTag.textContent = t.modalDirectiveTag;
+
+    const lblModalDirectiveTitle = document.getElementById('lbl-modal-directive-title');
+    if (lblModalDirectiveTitle) lblModalDirectiveTitle.textContent = t.modalDirectiveTitle;
+
+    const lblModalGoalTitle = document.getElementById('lbl-modal-goal-title');
+    if (lblModalGoalTitle) lblModalGoalTitle.textContent = t.modalDirectiveTitleLabel;
+
+    const goalTitleInput = document.getElementById('goal-title');
+    if (goalTitleInput) goalTitleInput.placeholder = t.modalDirectiveTitlePh;
+
+    const lblModalGoalDesc = document.getElementById('lbl-modal-goal-desc');
+    if (lblModalGoalDesc) lblModalGoalDesc.textContent = t.modalDirectiveDescLabel;
+
+    const goalDescInput = document.getElementById('goal-desc');
+    if (goalDescInput) goalDescInput.placeholder = t.modalDirectiveDescPh;
+
+    const lblModalGoalCategory = document.getElementById('lbl-modal-goal-category');
+    if (lblModalGoalCategory) lblModalGoalCategory.textContent = t.modalDirectiveCatLabel;
+
+    const catSelect = document.getElementById('goal-category');
+    if (catSelect) {
+        const curCat = catSelect.value;
+        catSelect.innerHTML = lang === 'en' ? `
+            <option value="career">💼 CAREER & VENTURE</option>
+            <option value="health">💪 PHYSICAL & COMBAT READY</option>
+            <option value="finance">💰 CAPITAL & WEALTH</option>
+            <option value="education">📚 KNOWLEDGE & INTEL</option>
+            <option value="personal">🌟 PERSONAL PROTOCOL</option>
+        ` : `
+            <option value="career">💼 การงานและธุรกิจ</option>
+            <option value="health">💪 สุขภาพและการฟิตร่างกาย</option>
+            <option value="finance">💰 การเงินและการลงทุน</option>
+            <option value="education">📚 ความรู้และทักษะ</option>
+            <option value="personal">🌟 พัฒนาตนเอง</option>
+        `;
+        if (curCat) catSelect.value = curCat;
+    }
+
+    const lblModalGoalDate = document.getElementById('lbl-modal-goal-date');
+    if (lblModalGoalDate) lblModalGoalDate.textContent = t.modalDirectiveDateLabel;
+
+    const btnModalGoalCancel = document.getElementById('btn-modal-goal-cancel');
+    if (btnModalGoalCancel) btnModalGoalCancel.textContent = t.modalDirectiveCancel;
+
+    const btnModalGoalConfirm = document.getElementById('btn-modal-goal-confirm');
+    if (btnModalGoalConfirm) btnModalGoalConfirm.textContent = t.modalDirectiveConfirm;
+
+    // 12. Modal: Settings
+    const lblSettingsTag = document.getElementById('lbl-settings-tag');
+    if (lblSettingsTag) lblSettingsTag.textContent = t.modalSettingsTag;
+
+    const settingsTitleText = document.getElementById('settings-title-text');
+    if (settingsTitleText) settingsTitleText.textContent = t.modalSettingsTitle;
+
+    const lblLangSec = document.getElementById('label-lang-sec');
+    if (lblLangSec) lblLangSec.textContent = t.modalSettingsLangSec;
+
+    const lblLangSelect = document.getElementById('label-lang-select');
+    if (lblLangSelect) lblLangSelect.textContent = t.modalSettingsLangSelect;
+
+    const lblCallsignSelect = document.getElementById('label-callsign-select');
+    if (lblCallsignSelect) lblCallsignSelect.textContent = t.modalSettingsCallsignSelect;
+
+    const callsignSelect = document.getElementById('setting-callsign');
+    if (callsignSelect) {
+        const curCallsign = callsignSelect.value;
+        callsignSelect.innerHTML = lang === 'en' ? `
+            <option value="Sir">Sir (British Formal)</option>
+            <option value="Tony">Tony (Stark Direct)</option>
+            <option value="Boss">Boss (Executive)</option>
+            <option value="ท่าน">ท่าน (Sir - Thai)</option>
+        ` : `
+            <option value="ท่าน">ท่าน (Sir - ค่าเริ่มต้น)</option>
+            <option value="Sir">Sir (อังกฤษทางการ)</option>
+            <option value="บอส">บอส (Boss)</option>
+            <option value="นายท่าน">นายท่าน (Master)</option>
+            <option value="Tony">Tony (Stark Direct)</option>
+        `;
+        if (curCallsign) callsignSelect.value = curCallsign;
+    }
+
+    const lblVoiceSec = document.getElementById('label-voice-sec');
+    if (lblVoiceSec) lblVoiceSec.textContent = t.modalSettingsVoiceSec;
+
+    const lblVoiceModel = document.getElementById('label-voice-model');
+    if (lblVoiceModel) lblVoiceModel.textContent = t.modalSettingsVoiceModel;
+
+    const voiceSelect = document.getElementById('setting-voice-model');
+    if (voiceSelect) {
+        const curVoice = voiceSelect.value;
+        voiceSelect.innerHTML = lang === 'en' ? `
+            <option value="en-GB-RyanNeural">en-GB Ryan Neural (English Butler - Paul Bettany style)</option>
+            <option value="en-GB-ThomasNeural">en-GB Thomas Neural (English Formal Male)</option>
+            <option value="th-TH-NiwatNeural">th-TH Niwat Neural (Thai Male - Calm & Deep)</option>
+            <option value="th-TH-PremwadeeNeural">th-TH Premwadee Neural (Thai Female - Clear & Polite)</option>
+        ` : `
+            <option value="th-TH-NiwatNeural">th-TH Niwat Neural (ชาย - สุขุม นุ่มลึก)</option>
+            <option value="th-TH-PremwadeeNeural">th-TH Premwadee Neural (หญิง - สุภาพ ชัดเจน)</option>
+            <option value="en-GB-RyanNeural">en-GB Ryan Neural (English Butler - สไตล์พอล เบ็ตตานีย์)</option>
+            <option value="en-GB-ThomasNeural">en-GB Thomas Neural (English Formal Male)</option>
+        `;
+        if (curVoice) voiceSelect.value = curVoice;
+    }
+
+    const lblAutoSpeech = document.getElementById('label-auto-speech');
+    if (lblAutoSpeech) lblAutoSpeech.textContent = t.modalSettingsAutoSpeech;
+
+    const lblAutoVocalizeSub = document.getElementById('label-auto-vocalize-sub');
+    if (lblAutoVocalizeSub) lblAutoVocalizeSub.textContent = t.modalSettingsAutoSpeechSub;
+
+    const lblThemeSec = document.getElementById('label-theme-sec');
+    if (lblThemeSec) lblThemeSec.textContent = t.modalSettingsThemeSec;
+
+    const lblColorPalette = document.getElementById('label-color-palette');
+    if (lblColorPalette) lblColorPalette.textContent = t.modalSettingsColorPalette;
+
+    const lblScanlinesSub = document.getElementById('label-scanlines-sub');
+    if (lblScanlinesSub) lblScanlinesSub.textContent = t.modalSettingsScanlines;
+
+    const lblDataSec = document.getElementById('label-data-sec');
+    if (lblDataSec) lblDataSec.textContent = t.modalSettingsDataSec;
+
+    const btnPurgeOps = document.getElementById('btn-purge-ops');
+    if (btnPurgeOps) btnPurgeOps.innerHTML = `<span>🧹</span> ${t.modalSettingsPurgeOps}`;
+
+    const btnPurgeComms = document.getElementById('btn-purge-comms');
+    if (btnPurgeComms) btnPurgeComms.innerHTML = `<span>🗑️</span> ${t.modalSettingsPurgeComms}`;
+
+    const btnSettingsCancel = document.getElementById('btn-settings-cancel');
+    if (btnSettingsCancel) btnSettingsCancel.textContent = t.modalSettingsClose;
+
+    const btnSettingsSave = document.getElementById('btn-settings-save');
+    if (btnSettingsSave) btnSettingsSave.textContent = t.modalSettingsSave;
+}
+
+function openSettingsModal() {
+    playBeep(1100, 0.05);
+    applySettingsToDOM();
+    document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    playBeep(700, 0.05);
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+function saveSettings() {
+    userSettings.language = document.getElementById('setting-lang').value;
+    userSettings.callsign = document.getElementById('setting-callsign').value;
+    userSettings.voiceModel = document.getElementById('setting-voice-model').value;
+    userSettings.autoVocalize = document.getElementById('setting-auto-vocalize').checked;
+    userSettings.scanlines = document.getElementById('setting-scanlines').checked;
+
+    try {
+        localStorage.setItem('stark_hud_settings', JSON.stringify(userSettings));
+    } catch (e) {}
+
+    playConfirmChime();
+    closeSettingsModal();
+    applySettingsToDOM();
+    loadDashboard();
+    loadGoals();
+    loadTelemetry();
+
+    const confirmMsg = userSettings.language === 'en'
+        ? `Configuration calibrated, ${userSettings.callsign || 'Sir'}. All subsystems synchronized.`
+        : `บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ${userSettings.callsign || 'ท่าน'}`;
+    
+    speakJarvis(confirmMsg);
+}
+
+function onSettingLanguageChange() {
+    const lang = document.getElementById('setting-lang').value;
+    const callsignSelect = document.getElementById('setting-callsign');
+    const voiceSelect = document.getElementById('setting-voice-model');
+
+    if (lang === 'en') {
+        if (callsignSelect) callsignSelect.value = 'Sir';
+        if (voiceSelect) voiceSelect.value = 'en-GB-RyanNeural';
+    } else {
+        if (callsignSelect) callsignSelect.value = 'ท่าน';
+        if (voiceSelect) voiceSelect.value = 'th-TH-NiwatNeural';
+    }
+
+    userSettings.language = lang;
+    updateUILanguage(lang);
+    loadTelemetry();
+    if (currentView === 'dashboard') loadDashboard();
+    if (currentView === 'goals') loadGoals();
+}
+
+function setHUDTheme(theme) {
+    userSettings.theme = theme;
+    document.body.setAttribute('data-theme', theme);
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+    });
+    playBeep(1400, 0.05);
+    try {
+        localStorage.setItem('stark_hud_settings', JSON.stringify(userSettings));
+    } catch (e) {}
+}
+
+function toggleScanlines(enabled) {
+    const scanlineEl = document.querySelector('.hud-scanlines');
+    if (scanlineEl) {
+        scanlineEl.style.display = enabled ? 'block' : 'none';
+    }
+}
+
+async function purgeCompletedOps() {
+    const confirmPrompt = userSettings.language === 'en'
+        ? 'Purge all completed tactical operations, Sir?'
+        : 'ยืนยันการล้างภารกิจที่ทำเสร็จแล้วใช่หรือไม่ครับท่าน?';
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+        playBeep(400, 0.1);
+        await fetch('/api/tasks/completed', { method: 'DELETE' });
+        loadDashboard();
+        loadGoals();
+        loadTelemetry();
+        playConfirmChime();
+        const msg = userSettings.language === 'en' ? 'Completed operations purged, Sir.' : 'ล้างภารกิจที่เสร็จแล้วเรียบร้อยครับท่าน';
+        speakJarvis(msg);
+    } catch (e) {}
+}
+
+async function purgeChatComms() {
+    const confirmPrompt = userSettings.language === 'en'
+        ? 'Clear all communication logs, Sir?'
+        : 'ยืนยันการล้างประวัติการสื่อสารทั้งหมดใช่หรือไม่ครับท่าน?';
+    if (!confirm(confirmPrompt)) return;
+
+    try {
+        playBeep(400, 0.1);
+        await fetch('/api/chat/history', { method: 'DELETE' });
+        loadChatHistory();
+        playConfirmChime();
+        const msg = userSettings.language === 'en' ? 'Communication log purged, Sir.' : 'ล้างประวัติการสื่อสารทั้งหมดเรียบร้อยครับท่าน';
+        speakJarvis(msg);
+    } catch (e) {}
+}
+
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadSettingsFromStorage();
     setupNavigation();
     setupCommandInput();
     setupControls();
@@ -488,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadChatHistory();
     setInterval(loadTelemetry, 5000);
 
-    // Boot Chime on first user interaction
+    // Audio context initialization on click
     document.body.addEventListener('click', () => {
         initAudioContext();
     }, { once: true });
@@ -511,20 +1139,21 @@ function setupControls() {
     const sfxBtn = document.getElementById('btn-toggle-sfx');
     const voiceBtn = document.getElementById('btn-toggle-voice');
 
-    sfxBtn.addEventListener('click', () => {
+    sfxBtn?.addEventListener('click', () => {
         sfxEnabled = !sfxEnabled;
         sfxBtn.classList.toggle('active', sfxEnabled);
         if (sfxEnabled) playBeep(1200, 0.05);
     });
 
-    voiceBtn.addEventListener('click', () => {
+    voiceBtn?.addEventListener('click', () => {
         voiceEnabled = !voiceEnabled;
         voiceBtn.classList.toggle('active', voiceEnabled);
         if (!voiceEnabled && isSpeaking) {
             audioElement.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             isSpeaking = false;
-            setReactorState('STANDBY // READY', 'VOICE MODULE MUTED');
+            const t = I18N[userSettings.language] || I18N.th;
+            setReactorState(t.reactorStandby, userSettings.language === 'en' ? 'VOICE MODULE MUTED' : 'ปิดระบบเสียงตอบกลับแล้ว');
         }
         playBeep(900, 0.05);
     });
@@ -567,15 +1196,25 @@ async function loadTelemetry() {
     try {
         const res = await fetch(API.telemetry);
         const data = await res.json();
+        const t = I18N[userSettings.language] || I18N.th;
 
-        document.getElementById('t-directives').textContent = `${data.active_directives} ACTIVE`;
-        document.getElementById('t-today-ops').textContent = `${data.tactical_ops_completed} / ${data.tactical_ops_total}`;
-        document.getElementById('t-efficiency').textContent = `${data.core_efficiency}%`;
-        document.getElementById('t-streak').textContent = `${data.streak_days} DAYS`;
-        document.getElementById('t-neural').textContent = data.neural_link;
-    } catch (e) {
-        // Silently keep cached
-    }
+        const directivesEl = document.getElementById('t-directives');
+        if (directivesEl) directivesEl.textContent = `${data.active_directives} ${t.active}`;
+
+        const opsEl = document.getElementById('t-today-ops');
+        if (opsEl) opsEl.textContent = `${data.tactical_ops_completed} / ${data.tactical_ops_total}`;
+
+        const effEl = document.getElementById('t-efficiency');
+        if (effEl) effEl.textContent = `${data.core_efficiency}%`;
+
+        const streakEl = document.getElementById('t-streak');
+        if (streakEl) streakEl.textContent = `${data.streak_days} ${t.days}`;
+
+        const neuralEl = document.getElementById('t-neural');
+        if (neuralEl) {
+            neuralEl.textContent = userSettings.language === 'en' ? data.neural_link : 'GEMINI-FLASH พร้อมใช้งาน';
+        }
+    } catch (e) {}
 }
 
 // ==================== DASHBOARD (MISSION CONTROL) ====================
@@ -595,22 +1234,25 @@ async function loadDashboard() {
 
 function renderDashboardGoals(goals) {
     const container = document.getElementById('dashboard-goals-list');
+    const t = I18N[userSettings.language] || I18N.th;
+
     if (!goals || goals.length === 0) {
         container.innerHTML = `
             <div class="hud-empty-state">
                 <div class="empty-reticle"></div>
-                <p class="empty-title">NO ACTIVE DIRECTIVES INITIALIZED</p>
-                <p class="empty-desc">สั่งการ J.A.R.V.I.S. หรือกด 'NEW DIRECTIVE' เพื่อเริ่มยุทธการแรก</p>
+                <p class="empty-title">${t.emptyDirectivesTitle}</p>
+                <p class="empty-desc">${t.emptyDirectivesDesc}</p>
             </div>`;
         return;
     }
 
+    const opsUnit = userSettings.language === 'en' ? 'OPS' : 'ภารกิจ';
     container.innerHTML = goals.map(goal => `
         <div class="hud-directive-item" onclick="switchView('goals')">
             <div class="directive-icon">${CATEGORY_ICONS[goal.category] || '🎯'}</div>
             <div class="directive-meta">
                 <div class="directive-title">${escapeHtml(goal.title)}</div>
-                <div class="directive-sub">${goal.tasks.length} OPS // ${CATEGORY_NAMES[goal.category] || goal.category}</div>
+                <div class="directive-sub">${goal.tasks.length} ${opsUnit} // ${getCategoryName(goal.category)}</div>
             </div>
             <div class="directive-progress-col">
                 <div class="directive-progress-val">${goal.progress}%</div>
@@ -625,16 +1267,17 @@ function renderDashboardGoals(goals) {
 function renderTodayTasks(tasks) {
     const container = document.getElementById('dashboard-today-list');
     const badge = document.getElementById('today-count-badge');
+    const t = I18N[userSettings.language] || I18N.th;
     
-    const pendingCount = tasks ? tasks.filter(t => !t.is_completed).length : 0;
-    if (badge) badge.textContent = `${pendingCount} PENDING`;
+    const pendingCount = tasks ? tasks.filter(task => !task.is_completed).length : 0;
+    if (badge) badge.textContent = `${pendingCount} ${t.pendingBadge}`;
 
     if (!tasks || tasks.length === 0) {
         container.innerHTML = `
             <div class="hud-empty-state">
                 <div class="empty-reticle"></div>
-                <p class="empty-title">NO IMMEDIATE OPERATIONS FOR TODAY</p>
-                <p class="empty-desc">ยุทธการทั้งหมดพร้อมรับคำสั่งการใหม่จากท่านครับ</p>
+                <p class="empty-title">${t.emptyOpsTitle}</p>
+                <p class="empty-desc">${t.emptyOpsDesc}</p>
             </div>`;
         return;
     }
@@ -645,7 +1288,7 @@ function renderTodayTasks(tasks) {
                 ${task.is_completed ? '✓' : ''}
             </div>
             <span class="op-text ${task.is_completed ? 'completed' : ''}">${escapeHtml(task.title)}</span>
-            <span class="op-tag">${FREQ_LABELS[task.frequency] || task.frequency}</span>
+            <span class="op-tag">${getFrequencyLabel(task.frequency)}</span>
         </div>
     `).join('');
 }
@@ -664,30 +1307,34 @@ async function loadGoals() {
 
 function renderGoalsGrid(goals) {
     const container = document.getElementById('goals-grid');
+    const t = I18N[userSettings.language] || I18N.th;
+
     if (!goals || goals.length === 0) {
         container.innerHTML = `
             <div class="hud-empty-state" style="grid-column: 1 / -1; padding: 60px 0;">
                 <div class="empty-reticle"></div>
-                <p class="empty-title">NO DIRECTIVES REGISTERED</p>
-                <p class="empty-desc">ส่งคำสั่งให้ J.A.R.V.I.S. วางแผน หรือคลิกปุ่ม 'INITIALIZE NEW DIRECTIVE' ด้านบน</p>
+                <p class="empty-title">${t.emptyDirectivesTitle}</p>
+                <p class="empty-desc">${t.emptyDirectivesDesc}</p>
             </div>`;
         return;
     }
+
+    const delTitle = userSettings.language === 'en' ? 'Cancel Directive' : 'ยกเลิกยุทธการ';
 
     container.innerHTML = goals.map(goal => `
         <div class="matrix-card">
             <div class="matrix-card-header">
                 <div>
-                    <span class="matrix-card-cat">${CATEGORY_NAMES[goal.category] || goal.category}</span>
+                    <span class="matrix-card-cat">${getCategoryName(goal.category)}</span>
                     <h3 class="matrix-card-title">${escapeHtml(goal.title)}</h3>
                 </div>
-                <button class="matrix-card-delete" onclick="deleteGoal(${goal.id})" title="ยกเลิกยุทธการ">✕</button>
+                <button class="matrix-card-delete" onclick="deleteGoal(${goal.id})" title="${delTitle}">✕</button>
             </div>
             ${goal.description ? `<p class="matrix-card-desc">${escapeHtml(goal.description)}</p>` : ''}
             
             <div class="matrix-card-progress">
                 <div class="matrix-progress-labels">
-                    <span style="color:var(--text-muted)">TACTICAL EFFICIENCY</span>
+                    <span style="color:var(--text-muted)">${t.matrixEfficiencyLabel}</span>
                     <span style="color:var(--stark-cyan); font-weight:700">${goal.progress}%</span>
                 </div>
                 <div class="directive-bar">
@@ -697,14 +1344,14 @@ function renderGoalsGrid(goals) {
 
             ${goal.tasks.length > 0 ? `
                 <div class="matrix-tasks-section">
-                    <span class="matrix-tasks-title">TACTICAL OPERATIONS (${goal.tasks.filter(t => t.is_completed).length}/${goal.tasks.length})</span>
+                    <span class="matrix-tasks-title">${t.matrixTasksLabel} (${goal.tasks.filter(task => task.is_completed).length}/${goal.tasks.length})</span>
                     ${goal.tasks.map(task => `
                         <div class="hud-op-item" style="padding:8px 10px;" onclick="toggleTask(${task.id})">
                             <div class="op-checkbox ${task.is_completed ? 'checked' : ''}" style="width:16px;height:16px;font-size:10px;">
                                 ${task.is_completed ? '✓' : ''}
                             </div>
                             <span class="op-text ${task.is_completed ? 'completed' : ''}" style="font-size:12px;">${escapeHtml(task.title)}</span>
-                            ${task.frequency !== 'one-time' ? `<span class="op-tag">${FREQ_LABELS[task.frequency]}</span>` : ''}
+                            ${task.frequency !== 'one-time' ? `<span class="op-tag">${getFrequencyLabel(task.frequency)}</span>` : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -732,7 +1379,11 @@ async function toggleTask(taskId) {
 }
 
 async function deleteGoal(goalId) {
-    if (!confirm('ยืนยันการยกเลิกยุทธการนี้ใช่หรือไม่ครับท่าน?')) return;
+    const confirmPrompt = userSettings.language === 'en'
+        ? 'Confirm aborting this strategic directive, Sir?'
+        : 'ยืนยันการยกเลิกยุทธการนี้ใช่หรือไม่ครับท่าน?';
+    if (!confirm(confirmPrompt)) return;
+
     try {
         playBeep(400, 0.1);
         await fetch(`${API.goals}/${goalId}`, { method: 'DELETE' });
@@ -750,22 +1401,28 @@ async function runBriefingProtocol() {
     if (isComputing) return;
     playTacticalSweep();
 
-    setReactorState('COMPUTING // BRIEFING PROTOCOL', 'ANALYZING STARK DIRECTIVES...');
+    const t = I18N[userSettings.language] || I18N.th;
+    setReactorState(t.reactorComputing, userSettings.language === 'en' ? 'ANALYZING STARK DIRECTIVES...' : 'กำลังวิเคราะห์ยุทธการ...');
     isComputing = true;
 
-    // Show indicator in chat
-    appendCommsEntry('user', '⚡ PROTOCOL: DAILY BRIEFING');
+    appendCommsEntry('user', t.briefingBtn);
     showTypingComms();
 
     try {
-        const res = await fetch(API.briefing, { method: 'POST' });
+        const res = await fetch(API.briefing, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                language: userSettings.language,
+                callsign: userSettings.callsign
+            })
+        });
         const data = await res.json();
 
         removeTypingComms();
         appendCommsEntry('assistant', data.message, data.created_goals);
         playConfirmChime();
 
-        // Speak briefing aloud
         if (data.speech_text) {
             speakJarvis(data.speech_text);
         } else {
@@ -776,8 +1433,8 @@ async function runBriefingProtocol() {
         loadTelemetry();
     } catch (err) {
         removeTypingComms();
-        appendCommsEntry('assistant', 'ขออภัยครับท่าน เกิดข้อขัดข้องในการรวบรวมข้อมูลยุทธการประจำวัน');
-        setReactorState('STANDBY // READY', 'ALL SYSTEMS NOMINAL');
+        appendCommsEntry('assistant', userSettings.language === 'en' ? 'Apologies, Sir. An error occurred compiling the tactical briefing.' : 'ขออภัยครับท่าน เกิดข้อขัดข้องในการรวบรวมข้อมูลยุทธการประจำวัน');
+        setReactorState(t.reactorStandby, t.systemNominal);
     } finally {
         isComputing = false;
     }
@@ -787,7 +1444,7 @@ async function runBriefingProtocol() {
 
 function setupCommandInput() {
     const input = document.getElementById('hud-command-input');
-    input.addEventListener('keydown', (e) => {
+    input?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             submitCommand();
@@ -795,8 +1452,15 @@ function setupCommandInput() {
     });
 }
 
-function quickSend(message) {
-    document.getElementById('hud-command-input').value = message;
+function quickSend(type) {
+    const t = I18N[userSettings.language] || I18N.th;
+    if (type === 'scan') {
+        document.getElementById('hud-command-input').value = t.statusScanPrompt;
+    } else if (type === 'advice') {
+        document.getElementById('hud-command-input').value = t.advicePrompt;
+    } else {
+        document.getElementById('hud-command-input').value = type;
+    }
     submitCommand();
 }
 
@@ -807,7 +1471,7 @@ async function submitCommand() {
     const message = input.value.trim();
     if (!message) return;
 
-    // Command protocol shortcuts
+    // Command shortcuts
     if (message.toLowerCase() === '/briefing' || message.toLowerCase() === 'briefing') {
         input.value = '';
         runBriefingProtocol();
@@ -821,13 +1485,18 @@ async function submitCommand() {
     showTypingComms();
     
     isComputing = true;
-    setReactorState('COMPUTING // PROCESSING DIRECTIVE', 'RUNNING NEURAL SIMULATION...');
+    const t = I18N[userSettings.language] || I18N.th;
+    setReactorState(t.reactorComputing, t.reactorSimulation);
 
     try {
         const res = await fetch(API.chat, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({
+                message,
+                language: userSettings.language,
+                callsign: userSettings.callsign
+            }),
         });
         const data = await res.json();
 
@@ -835,7 +1504,6 @@ async function submitCommand() {
         appendCommsEntry('assistant', data.message, data.created_goals);
         playConfirmChime();
 
-        // Vocalize response
         if (data.speech_text) {
             speakJarvis(data.speech_text);
         } else {
@@ -848,12 +1516,12 @@ async function submitCommand() {
         }
     } catch (err) {
         removeTypingComms();
-        appendCommsEntry('assistant', 'ขออภัยครับท่าน ระบบเครือข่ายขัดข้อง กรุณาลองสั่งการใหม่อีกครั้งครับ');
-        setReactorState('STANDBY // READY', 'ALL SYSTEMS NOMINAL');
+        appendCommsEntry('assistant', userSettings.language === 'en' ? 'Apologies, Sir. Neural comms link encountered an anomaly.' : 'ขออภัยครับท่าน ระบบเครือข่ายขัดข้อง กรุณาลองสั่งการใหม่อีกครั้งครับ');
+        setReactorState(t.reactorStandby, t.systemNominal);
     } finally {
         isComputing = false;
         if (!isSpeaking) {
-            setReactorState('STANDBY // READY', 'CLICK MIC OR TRANSMIT COMMAND');
+            setReactorState(t.reactorStandby, t.reactorClickMic);
         }
     }
 }
@@ -863,6 +1531,7 @@ async function loadChatHistory() {
         const res = await fetch(API.chatHistory);
         const data = await res.json();
         const container = document.getElementById('chat-messages');
+        const t = I18N[userSettings.language] || I18N.th;
         container.innerHTML = '';
 
         if (data.messages && data.messages.length > 0) {
@@ -873,7 +1542,7 @@ async function loadChatHistory() {
                 );
             });
         } else {
-            appendCommsEntry('assistant', 'สวัสดีครับท่าน ผม J.A.R.V.I.S. ประจำการพร้อมสนับสนุนยุทธการและการวางแผนทั้งหมดของท่านครับ วันนี้มีภารกิจใดให้ผมรับใช้ครับ?');
+            appendCommsEntry('assistant', t.welcomeMsg);
         }
     } catch (err) {
         console.error('Failed to load chat history:', err);
@@ -885,24 +1554,26 @@ function appendCommsEntry(role, message, createdGoals = []) {
     const entry = document.createElement('div');
     entry.className = `comms-entry ${role}`;
 
-    const avatarText = role === 'user' ? 'YOU' : 'JARVIS';
+    const avatarText = role === 'user' ? (userSettings.language === 'en' ? 'YOU' : 'ท่าน') : 'JARVIS';
     const formatted = formatChatMessage(message);
 
     let goalsHtml = '';
     if (createdGoals && createdGoals.length > 0) {
+        const directiveTitle = userSettings.language === 'en' ? '⚡ INITIALIZED STRATEGIC DIRECTIVE' : '⚡ บันทึกยุทธการเชิงกลยุทธ์แล้ว';
         goalsHtml = createdGoals.map(goal => `
             <div style="margin-top:10px; padding:10px; background:rgba(0, 240, 255, 0.08); border:1px solid var(--stark-cyan); border-radius:2px;">
-                <div style="font-family:var(--font-mono); font-size:11px; color:var(--stark-cyan);">⚡ INITIALIZED STRATEGIC DIRECTIVE</div>
+                <div style="font-family:var(--font-mono); font-size:11px; color:var(--stark-cyan);">${directiveTitle}</div>
                 <div style="font-weight:700; color:#fff; margin:4px 0;">${escapeHtml(goal.title)}</div>
-                ${goal.tasks.map(t => `<div style="font-size:12px; color:var(--text-secondary);">✓ ${escapeHtml(t.title)} (${FREQ_LABELS[t.frequency] || t.frequency})</div>`).join('')}
+                ${goal.tasks.map(task => `<div style="font-size:12px; color:var(--text-secondary);">✓ ${escapeHtml(task.title)} (${getFrequencyLabel(task.frequency)})</div>`).join('')}
             </div>
         `).join('');
     }
 
+    const replayBtnText = userSettings.language === 'en' ? '🔊 REPLAY VOICE' : '🔊 ฟังเสียงซ้ำ';
     const replayBtnHtml = role === 'assistant' ? `
         <div class="comms-actions">
             <button class="btn-replay-voice" onclick="speakJarvis('${escapeForJsString(message)}')">
-                <span>🔊 REPLAY VOICE</span>
+                <span>${replayBtnText}</span>
             </button>
         </div>
     ` : '';
@@ -925,10 +1596,11 @@ function showTypingComms() {
     const typing = document.createElement('div');
     typing.className = 'comms-entry assistant';
     typing.id = 'comms-typing';
+    const typingText = userSettings.language === 'en' ? 'COMPUTING DIRECTIVE... // PROCESSING' : 'กำลังประมวลผลคำสั่งการ... // กำลังวิเคราะห์';
     typing.innerHTML = `
         <div class="comms-avatar">JARVIS</div>
         <div class="comms-bubble" style="font-family:var(--font-mono); font-size:12px; color:var(--stark-cyan);">
-            COMPUTING DIRECTIVE... // PROCESSING
+            ${typingText}
         </div>
     `;
     container.appendChild(typing);
@@ -952,7 +1624,8 @@ function scrollChatToBottom() {
 function clearLocalChat() {
     const container = document.getElementById('chat-messages');
     container.innerHTML = '';
-    appendCommsEntry('assistant', 'Comms log cleared, Sir. All systems standing by.');
+    const t = I18N[userSettings.language] || I18N.th;
+    appendCommsEntry('assistant', userSettings.language === 'en' ? 'Comms log cleared, Sir. All systems standing by.' : 'ล้างประวัติการสื่อสารเรียบร้อยครับท่าน ระบบพร้อมรับคำสั่งการครับ');
 }
 
 // ==================== MANUAL MODAL ====================
@@ -997,7 +1670,10 @@ async function createGoalManual() {
         loadGoals();
         loadDashboard();
         loadTelemetry();
-        speakJarvis(`รับทราบครับท่าน ยุทธการ ${title} ได้รับการบันทึกเข้าสู่ระบบเรียบร้อยแล้วครับ`);
+        const ackMsg = userSettings.language === 'en'
+            ? `Understood, ${userSettings.callsign || 'Sir'}. Directive ${title} has been registered.`
+            : `รับทราบครับท่าน ยุทธการ ${title} ได้รับการบันทึกเข้าสู่ระบบเรียบร้อยแล้วครับ`;
+        speakJarvis(ackMsg);
     } catch (err) {
         console.error('Failed to create goal:', err);
     }
