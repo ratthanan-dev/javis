@@ -1,0 +1,30 @@
+{
+  "service_title": "รับพัฒนา Web Application และระบบ AI Automation อัจฉริยะ ระดับพรีเมียม",
+  "category": "Web & Programming",
+  "subcategory": "Web Application / Automation Script",
+  "short_description": "พัฒนาเว็บแอปพลิเคชันและระบบอัตโนมัติ AI Agent ประสิทธิภาพสูง ตอบโจทย์ธุรกิจ",
+  "full_description": "บริการพัฒนาเว็บไซต์และระบบ AI Automation ครบวงจร:\n\n1. ออกแบบและพัฒนา Full-stack Web Application ด้วยเทคโนโลยีทันสมัย (FastAPI, Python, JavaScript, CSS ชั้นสูง)\n2. สร้างระบบ AI Automation & Agentic Workflows ช่วยลดเวลาการทำงานซ้ำซ้อน\n3. เชื่อมต่อฐานข้อมูลและ API พร้อมระบบรักษาความปลอดภัย Sandbox\n4. ปรับแต่ง UI ให้ดูหรูหรา ทันสมัย มีระดับ พร้อมใช้งานทันที\n\nพร้อมดูแลและส่งมอบงานตรงเวลา มีคู่มือและบริการหลังการขายครับ",
+  "pricing": {
+    "starter_package": {
+      "name": "Standard Web Automation",
+      "price_thb": 3500,
+      "delivery_days": 3,
+      "revisions": 2,
+      "details": "สคริปต์ Web Automation หรือระบบจัดการข้อมูลอัตโนมัติ 1 ระบบ"
+    },
+    "pro_package": {
+      "name": "Full Web App & AI Agent",
+      "price_thb": 8500,
+      "delivery_days": 7,
+      "revisions": 3,
+      "details": "เว็บแอปพลิเคชันครบวงจร พร้อมระบบ AI เชื่อมต่อฐานข้อมูลและหน้าจอแดชบอร์ด"
+    }
+  },
+  "tags": ["Web Development", "AI Automation", "FastAPI", "Python", "Playwright"],
+  "sample_faq": [
+    {
+      "question": "มีบริการดูแลหลังส่งมอบงานหรือไม่?",
+      "answer": "มีบริการดูแลแก้ไขบั๊กและให้คำปรึกษาฟรี 30 วันหลังส่งมอบงานครับ"
+    }
+  ]
+}

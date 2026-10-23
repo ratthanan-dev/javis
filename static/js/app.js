@@ -1537,7 +1537,7 @@ async function submitCommand() {
         const data = await res.json();
 
         removeTypingComms();
-        appendCommsEntry('assistant', data.message, data.created_goals);
+        appendCommsEntry('assistant', data.message, data.created_goals, data.agent_actions);
         playConfirmChime();
 
         if (data.speech_text) {
@@ -1585,13 +1585,27 @@ async function loadChatHistory() {
     }
 }
 
-function appendCommsEntry(role, message, createdGoals = []) {
+function appendCommsEntry(role, message, createdGoals = [], agentActions = []) {
     const container = document.getElementById('chat-messages');
     const entry = document.createElement('div');
     entry.className = `comms-entry ${role}`;
 
     const avatarText = role === 'user' ? (userSettings.language === 'en' ? 'YOU' : 'ท่าน') : 'JARVIS';
     const formatted = formatChatMessage(message);
+
+    let actionsHtml = '';
+    if (agentActions && agentActions.length > 0) {
+        actionsHtml = `
+            <div class="agent-actions-ribbon" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                ${agentActions.map(act => {
+                    const icon = act.tool.includes('browser') ? '🌐' : '📁';
+                    return `<span style="font-family:var(--font-mono); font-size:10px; padding:3px 8px; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.35); border-radius:3px; color:var(--stark-cyan); box-shadow:0 0 8px rgba(0,240,255,0.15);">
+                        ${icon} <strong>${escapeHtml(act.tool)}</strong>: ${escapeHtml(act.details)}
+                    </span>`;
+                }).join('')}
+            </div>
+        `;
+    }
 
     let goalsHtml = '';
     if (createdGoals && createdGoals.length > 0) {
@@ -1621,6 +1635,7 @@ function appendCommsEntry(role, message, createdGoals = []) {
     entry.innerHTML = `
         <div class="comms-avatar">${avatarText}</div>
         <div class="comms-bubble">
+            ${actionsHtml}
             <div>${formatted}</div>
             ${goalsHtml}
             ${replayBtnHtml}
@@ -1765,13 +1780,51 @@ async function createGoalManual() {
 
 function formatChatMessage(text) {
     if (!text) return '';
-    return text
+    
+    // Extract images first so html escaping doesn't mangle tags
+    const images = [];
+    let processed = text.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, src) => {
+        const placeholder = `__IMG_TOKEN_${images.length}__`;
+        images.push({ alt, src });
+        return placeholder;
+    });
+
+    // Escape basic html
+    processed = processed
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
+        .replace(/>/g, '&gt;');
+
+    // Code blocks
+    processed = processed.replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,10,20,0.8); border:1px solid rgba(0,240,255,0.3); padding:10px; border-radius:4px; font-family:var(--font-mono); font-size:12px; overflow-x:auto; margin:8px 0;"><code>$1</code></pre>');
+
+    // Inline code
+    processed = processed.replace(/`([^`]+)`/g, '<code style="background:rgba(0,240,255,0.1); color:var(--stark-cyan); padding:2px 6px; border-radius:3px; font-family:var(--font-mono); font-size:11px;">$1</code>');
+
+    // Markdown bold & italic & links
+    processed = processed
         .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--stark-cyan)">$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color:var(--stark-cyan); text-decoration:underline;">$1</a>')
         .replace(/\n/g, '<br>');
+
+    // Reinsert images
+    images.forEach((img, idx) => {
+        const imgHtml = `
+            <div class="agent-screenshot-card" style="margin:10px 0; background:rgba(0,20,35,0.6); border:1px solid rgba(0,240,255,0.3); border-radius:6px; padding:8px;">
+                <a href="${escapeHtml(img.src)}" target="_blank" title="คลิกเพื่อขยายดูภาพหลักฐาน">
+                    <img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt)}" style="max-width:100%; max-height:360px; border-radius:4px; border:1px solid rgba(0,240,255,0.4); display:block; transition:transform 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'" />
+                </a>
+                <div style="font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); margin-top:4px; display:flex; justify-content:space-between;">
+                    <span>📸 ${escapeHtml(img.alt || 'หลักฐานภาพหน้าจอ')}</span>
+                    <a href="${escapeHtml(img.src)}" target="_blank" style="color:var(--stark-cyan); text-decoration:none;">↗ เปิดดูภาพเต็ม</a>
+                </div>
+            </div>
+        `;
+        processed = processed.replace(`__IMG_TOKEN_${idx}__`, imgHtml);
+    });
+
+    return processed;
 }
 
 function escapeHtml(text) {

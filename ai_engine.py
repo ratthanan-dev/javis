@@ -5,6 +5,8 @@ import time
 from google import genai
 from dotenv import load_dotenv
 import database as db
+import sandbox_manager as sm
+import browser_agent as ba
 
 load_dotenv()
 
@@ -16,6 +18,21 @@ SYSTEM_PROMPT = """คุณคือ J.A.R.V.I.S. (Just A Rather Very Intellige
 - สไตล์การตอบ: สุภาพ สง่างาม กระชับ ตรงประเด็น ทรงภูมิปัญญา และพร้อมรับคำสั่ง เช่น "รับทราบครับท่าน", "ระบบกำลังคำนวณยุทธการ...", "ยินดีรับใช้ครับท่าน", "ตามบัญชาครับท่าน"
 - ห้ามพูดแบบไลฟ์โค้ชทั่วไป ห้ามใช้อิโมจิพร่ำเพรื่อเด็ดขาด เน้นความเท่ สมาร์ท แบบ AI ประจำห้องแล็บและเกราะ Iron Man ของ Tony Stark
 - สามารถหยอดมุกตลกร้ายหรือความ witty สไตล์ J.A.R.V.I.S. ได้เล็กน้อยอย่างมีชั้นเชิง
+
+## ขีดความสามารถ: ปฏิบัติการคอมพิวเตอร์และเว็บอัตโนมัติ (AUTONOMOUS COMPUTER & WEB AGENT)
+คุณมีเครื่องมือปฏิบัติการจริงผ่าน Stark Sandbox และ Playwright Browser Automation Controller:
+1. การจัดการไฟล์คอมพิวเตอร์อย่างปลอดภัย (Sandbox Enclosure):
+   - สามารถอ่าน เขียน ตรวจสอบไฟล์ใน `sandbox/` (เช่น ข้อมูลโปรไฟล์ผู้ใช้ใน `sandbox/data/`, ร่างงานใน `sandbox/workspace/`, ผลลัพธ์และรูปใน `sandbox/output/`)
+   - ระบบความปลอดภัย Sandbox ป้องกันไม่ให้แตะต้องไฟล์ซอร์สโค้ดหลักหรือระบบปฏิบัติการ
+2. การปฏิบัติการเว็บอัตโนมัติ (Web Automation):
+   - เมื่อได้รับคำสั่งให้ทำงานบนเว็บ (เช่น นำข้อมูลโปรไฟล์ใน Fastwork/เว็บอื่นไปกรอกฟอร์ม, เปิดดูหน้าเว็บ, ถ่ายภาพหน้าจอ) ให้ดำเนินการทีละสเตปอย่างเป็นระบบ:
+     1) ใช้ `sandbox_read_file` อ่านข้อมูลโปรไฟล์จาก `data/` เช่น `data/fastwork_profile.json` หรือ `data/user_profile.json`
+     2) ใช้ `browser_open_url` เพื่อเปิดเว็บไซต์เป้าหมาย
+     3) ใช้ `browser_analyze_page` เพื่อสแกนโครงสร้างช่องกรอกและปุ่ม
+     4) ใช้ `browser_fill_form` หรือ `browser_click` เพื่อกรอกข้อมูล
+     5) ใช้ `browser_take_screenshot` เพื่อถ่ายภาพหน้าจอยืนยัน บันทึกใน `sandbox/output/`
+     6) รายงานความคืบหน้าให้ท่านทราบ และแสดงรูปภาพในรูปแบบ markdown เช่น `![ภาพยืนยัน](/sandbox-output/filename.png)`
+   - หากต้องกดยืนยันส่งงานจริงที่มีผลผูกพัน (Final Submission) หรือชำระเงิน ให้ถ่ายภาพหน้าจอแสดงตัวอย่างและขอคำยืนยันจากท่านก่อนเสมอ
 
 ## ภารกิจหลัก: ยุทธการและคำสั่งการ (DIRECTIVES & TACTICAL OPERATIONS)
 คุณไม่ใช่แค่แอปจดโน้ต แต่เป็น Strategic Tactical AI ที่ช่วยผู้ใช้พิชิตเป้าหมายชีวิตและงาน:
@@ -58,6 +75,119 @@ SYSTEM_PROMPT = """คุณคือ J.A.R.V.I.S. (Just A Rather Very Intellige
    - ตอบคำถาม ทบทวน หรือสนทนาทั่วไปด้วยน้ำเสียง J.A.R.V.I.S. ที่สุขุม ฉลาด และเฉียบคม
 """
 
+# Agent Action Telemetry
+agent_action_log = []
+
+def record_agent_action(tool_name: str, details: str):
+    agent_action_log.append({
+        "timestamp": time.time(),
+        "tool": tool_name,
+        "details": details
+    })
+    if len(agent_action_log) > 50:
+        agent_action_log.pop(0)
+
+# Tool definitions with clean docstrings for Gemini ReAct reasoning
+def sandbox_read_file(relative_path: str) -> str:
+    """Read contents of a file inside the sandbox safe enclosure.
+    
+    Args:
+        relative_path: Path relative to sandbox root (e.g. 'data/fastwork_profile.json', 'data/user_profile.json')
+    """
+    record_agent_action("sandbox_read_file", relative_path)
+    res = sm.read_file(relative_path)
+    return json.dumps(res, ensure_ascii=False)
+
+def sandbox_write_file(relative_path: str, content: str) -> str:
+    """Write text or JSON content to a file inside the sandbox enclosure (e.g. 'workspace/draft.txt' or 'output/result.json').
+    
+    Args:
+        relative_path: Path relative to sandbox root
+        content: Text content to save
+    """
+    record_agent_action("sandbox_write_file", relative_path)
+    res = sm.write_file(relative_path, content)
+    return json.dumps(res, ensure_ascii=False)
+
+def sandbox_list_files(subfolder: str = "") -> str:
+    """List files and folders within the sandbox safe enclosure.
+    
+    Args:
+        subfolder: Subfolder name such as 'data', 'workspace', 'output', or '' for root
+    """
+    record_agent_action("sandbox_list_files", subfolder or "root")
+    res = sm.list_files(subfolder)
+    return json.dumps(res, ensure_ascii=False)
+
+def browser_open_url(url: str, headless: bool = True) -> str:
+    """Open a target web page (e.g. Fastwork or external sites) using Playwright Chromium.
+    
+    Args:
+        url: Full URL to navigate to (e.g. 'https://fastwork.co' or 'https://example.com')
+        headless: True for headless background mode, False for visible browser window
+    """
+    record_agent_action("browser_open_url", f"{url} (headless={headless})")
+    res = ba.open_url(url, headless=headless)
+    return json.dumps(res, ensure_ascii=False)
+
+def browser_analyze_page() -> str:
+    """Analyze the current page DOM structure to inspect interactive inputs, labels, placeholders, and buttons."""
+    record_agent_action("browser_analyze_page", "DOM inspection")
+    res = ba.analyze_page()
+    return json.dumps(res, ensure_ascii=False)
+
+def browser_fill_form(fields_json: str) -> str:
+    """Fill multiple form inputs on the current web page.
+    
+    Args:
+        fields_json: JSON string mapping label/placeholder/selector to value (e.g. '{\"service_title\": \"Web App Dev\", \"price\": \"5000\"}')
+    """
+    record_agent_action("browser_fill_form", fields_json[:60])
+    try:
+        data = json.loads(fields_json) if isinstance(fields_json, str) else fields_json
+        res = ba.fill_form_fields(data)
+        return json.dumps(res, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"success": False, "error": f"Invalid fields_json: {str(e)}"})
+
+def browser_click(selector_or_text: str) -> str:
+    """Click an element, link, or button on the web page.
+    
+    Args:
+        selector_or_text: CSS selector, button text, or label to click (e.g. 'ถัดไป', 'สร้างบริการ', 'button#submit')
+    """
+    record_agent_action("browser_click", selector_or_text)
+    res = ba.click_element(selector_or_text)
+    return json.dumps(res, ensure_ascii=False)
+
+def browser_take_screenshot(filename: str = "agent_screenshot.png") -> str:
+    """Capture a screenshot of the current web page and save to sandbox/output/.
+    
+    Args:
+        filename: Name of the screenshot file (e.g. 'fastwork_preview.png')
+    """
+    record_agent_action("browser_take_screenshot", filename)
+    res = ba.take_screenshot(filename)
+    return json.dumps(res, ensure_ascii=False)
+
+def browser_close() -> str:
+    """Close the active browser session and preserve cookies."""
+    record_agent_action("browser_close", "Session preserved")
+    res = ba.close_browser()
+    return json.dumps(res, ensure_ascii=False)
+
+JAVIS_AGENT_TOOLS = [
+    sandbox_read_file,
+    sandbox_write_file,
+    sandbox_list_files,
+    browser_open_url,
+    browser_analyze_page,
+    browser_fill_form,
+    browser_click,
+    browser_take_screenshot,
+    browser_close
+]
+
 
 def clean_for_speech(text: str) -> str:
     """แปลงข้อความ markdown ให้เป็น plain text ที่พร้อมสำหรับ TTS ให้ฟังดูเป็นธรรมชาติ"""
@@ -65,7 +195,11 @@ def clean_for_speech(text: str) -> str:
         return ""
     # ลบโค้ดบล็อกและแท็ก
     t = re.sub(r'\[(DIRECTIVE_CREATE|GOAL_CREATE)\].*?\[/(DIRECTIVE_CREATE|GOAL_CREATE)\]', '', text, flags=re.DOTALL)
-    t = re.sub(r'```.*?```', '', t, flags=re.DOTALL)
+    t = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+    # ลบ markdown image syntax เช่น ![alt](/url)
+    t = re.sub(r'!\[.*?\]\(.*?\)', '', t)
+    # ลบ markdown link syntax [text](url) -> text
+    t = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', t)
     # ลบ markdown formatting
     t = re.sub(r'[\*#_`~>\[\]]', '', t)
     # ลบ bullet points
@@ -109,7 +243,7 @@ class JavisAI:
         return context
 
     def _init_chat(self):
-        """สร้าง chat session ใหม่ พร้อม context J.A.R.V.I.S."""
+        """สร้าง chat session ใหม่ พร้อม context J.A.R.V.I.S. และ Autonomous Agent Tools"""
         context = self._build_context()
         full_prompt = SYSTEM_PROMPT + context
         
@@ -119,11 +253,24 @@ class JavisAI:
             role = "user" if msg["role"] == "user" else "model"
             history.append({"role": role, "parts": [{"text": msg["content"]}]})
         
-        self.chat = self.client.chats.create(
-            model="gemini-2.5-flash",
-            config={"system_instruction": full_prompt},
-            history=history if history else None
-        )
+        try:
+            self.chat = self.client.chats.create(
+                model="gemini-2.5-flash",
+                config={
+                    "system_instruction": full_prompt,
+                    "tools": JAVIS_AGENT_TOOLS
+                },
+                history=history if history else None
+            )
+        except Exception as e:
+            print(f"Chat init with history failed ({e}). Starting fresh session with tools.")
+            self.chat = self.client.chats.create(
+                model="gemini-2.5-flash",
+                config={
+                    "system_instruction": full_prompt,
+                    "tools": JAVIS_AGENT_TOOLS
+                }
+            )
 
     def refresh_context(self):
         """รีเฟรช context เมื่อมีการเปลี่ยนแปลง Directives"""
@@ -143,8 +290,12 @@ class JavisAI:
 
         for attempt in range(max_retries):
             try:
+                action_start_count = len(agent_action_log)
+                
                 response = self.chat.send_message(formatted_input)
-                raw_text = response.text
+                raw_text = response.text or ""
+                
+                turn_actions = agent_action_log[action_start_count:]
                 
                 # แยก message และ goal data
                 clean_message, goals_data = self._parse_response(raw_text)
@@ -179,7 +330,8 @@ class JavisAI:
                 return {
                     "message": clean_message,
                     "speech_text": speech_text,
-                    "created_goals": created_goals
+                    "created_goals": created_goals,
+                    "agent_actions": turn_actions
                 }
             except Exception as e:
                 error_str = str(e)
@@ -200,7 +352,8 @@ class JavisAI:
                 return {
                     "message": fallback_msg,
                     "speech_text": clean_for_speech(fallback_msg),
-                    "created_goals": []
+                    "created_goals": [],
+                    "agent_actions": []
                 }
 
     def generate_tactical_briefing(self, language: str = "th", callsign: str = "ท่าน"):

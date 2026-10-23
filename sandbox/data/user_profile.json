@@ -1,0 +1,15 @@
+{
+  "full_name": "รัชชานนท์ (Ratthanan)",
+  "display_name": "Ratthanan Dev",
+  "email": "ratthanan2205@gmail.com",
+  "phone": "081-234-5678",
+  "bio": "Full-stack Developer & AI Automation Specialist มุ่งเน้นการสร้างสรรค์เว็บแอปพลิเคชันระดับพรีเมียมและระบบ AI อัจฉริยะ",
+  "skills": [
+    "Web Application Development (FastAPI, React, Modern Vanilla Web)",
+    "AI Agent Architecture & Automation (Gemini API, Playwright, LLM Tooling)",
+    "Database Engineering & Cloud Systems",
+    "UI/UX Futuristic High-Tech Aesthetics"
+  ],
+  "languages": ["Thai (Native)", "English (Professional)"],
+  "location": "Bangkok, Thailand"
+}

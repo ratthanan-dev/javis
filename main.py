@@ -23,6 +23,11 @@ os.makedirs(os.path.join(static_dir, "js"), exist_ok=True)
 # Mount static files
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Mount sandbox output directory for agent screenshots & artifacts preview
+sandbox_output_dir = os.path.join(os.path.dirname(__file__), "sandbox", "output")
+os.makedirs(sandbox_output_dir, exist_ok=True)
+app.mount("/sandbox-output", StaticFiles(directory=sandbox_output_dir), name="sandbox-output")
+
 # Global AI instance & start time
 javis_ai = None
 start_timestamp = time.time()
@@ -71,7 +76,24 @@ def chat(req: ChatRequest):
     return {
         "message": result["message"],
         "speech_text": result.get("speech_text", result["message"]),
-        "created_goals": result["created_goals"]
+        "created_goals": result["created_goals"],
+        "agent_actions": result.get("agent_actions", [])
+    }
+
+
+@app.get("/api/agent/telemetry")
+def get_agent_telemetry():
+    """ดึงข้อมูลสถานะ Sandbox และ Telemetry ปฏิบัติการของ Agent"""
+    import sandbox_manager as sm
+    import browser_agent as ba
+    from ai_engine import agent_action_log
+    
+    return {
+        "status": "nominal",
+        "sandbox_root": sm.SANDBOX_ROOT,
+        "browser_active": ba.is_browser_active(),
+        "recent_actions": agent_action_log[-20:],
+        "sandbox_files": sm.list_files().get("files", [])
     }
 
 

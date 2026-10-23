@@ -2,3 +2,10 @@
 .env
 __pycache__/
 *.pyc
+sandbox/output/*
+!sandbox/output/.gitkeep
+sandbox/sessions/*
+!sandbox/sessions/.gitkeep
+sandbox/workspace/*
+!sandbox/workspace/.gitkeep
+
