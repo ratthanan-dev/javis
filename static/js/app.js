@@ -238,7 +238,7 @@ function getFrequencyLabel(freq) {
 }
 
 // System Global State
-let currentView = 'dashboard';
+let currentView = 'chat';
 let isComputing = false;
 let isSpeaking = false;
 let isListening = false;
@@ -723,6 +723,18 @@ function applySettingsToDOM() {
 
     // 4. Update UI Language labels
     updateUILanguage(userSettings.language || 'th');
+
+    // 5. Update Sidebar user profile
+    const sidebarUser = document.getElementById('sidebar-user-callsign');
+    if (sidebarUser) sidebarUser.textContent = userSettings.callsign || (userSettings.language === 'en' ? 'Sir' : 'ท่าน');
+
+    // 6. Restore sidebar state
+    try {
+        const isCollapsed = localStorage.getItem('jarvis_sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+        }
+    } catch (e) {}
 }
 
 function updateUILanguage(lang) {
@@ -1187,6 +1199,7 @@ function switchView(viewName) {
     if (viewName === 'chat') {
         document.getElementById('chat-dot')?.style.setProperty('display', 'none');
         scrollChatToBottom();
+        document.getElementById('hud-command-input')?.focus();
     }
 }
 
@@ -1206,6 +1219,9 @@ async function loadTelemetry() {
 
         const effEl = document.getElementById('t-efficiency');
         if (effEl) effEl.textContent = `${data.core_efficiency}%`;
+
+        const effBar = document.getElementById('t-efficiency-bar');
+        if (effBar) effBar.style.width = `${data.core_efficiency}%`;
 
         const streakEl = document.getElementById('t-streak');
         if (streakEl) streakEl.textContent = `${data.streak_days} ${t.days}`;
@@ -1235,6 +1251,26 @@ async function loadDashboard() {
 function renderDashboardGoals(goals) {
     const container = document.getElementById('dashboard-goals-list');
     const t = I18N[userSettings.language] || I18N.th;
+
+    // Update sidebar directives list
+    const sidebarList = document.getElementById('sidebar-directives-list');
+    const sidebarCount = document.getElementById('sidebar-directives-count');
+    if (sidebarCount) sidebarCount.textContent = goals ? goals.length : '0';
+    if (sidebarList) {
+        if (!goals || goals.length === 0) {
+            sidebarList.innerHTML = `<div class="sidebar-empty-hint">${userSettings.language === 'en' ? 'No active directives' : 'ยังไม่มีรายการยุทธการ'}</div>`;
+        } else {
+            sidebarList.innerHTML = goals.slice(0, 8).map(g => `
+                <div class="sidebar-directive-pill" onclick="switchView('goals')">
+                    <div class="sidebar-directive-pill-title">${escapeHtml(g.title)}</div>
+                    <div class="sidebar-directive-pill-meta">
+                        <span>${getCategoryName(g.category)}</span>
+                        <span style="color:var(--accent-primary)">${g.progress}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
 
     if (!goals || goals.length === 0) {
         container.innerHTML = `
@@ -1570,10 +1606,14 @@ function appendCommsEntry(role, message, createdGoals = []) {
     }
 
     const replayBtnText = userSettings.language === 'en' ? '🔊 REPLAY VOICE' : '🔊 ฟังเสียงซ้ำ';
+    const copyBtnText = userSettings.language === 'en' ? '📋 COPY' : '📋 คัดลอก';
     const replayBtnHtml = role === 'assistant' ? `
         <div class="comms-actions">
             <button class="btn-replay-voice" onclick="speakJarvis('${escapeForJsString(message)}')">
                 <span>${replayBtnText}</span>
+            </button>
+            <button class="btn-replay-voice" onclick="copyMessageText(this, '${escapeForJsString(message)}')">
+                <span>${copyBtnText}</span>
             </button>
         </div>
     ` : '';
@@ -1588,6 +1628,7 @@ function appendCommsEntry(role, message, createdGoals = []) {
     `;
 
     container.appendChild(entry);
+    updateWelcomeHeroVisibility();
     scrollChatToBottom();
 }
 
@@ -1626,6 +1667,47 @@ function clearLocalChat() {
     container.innerHTML = '';
     const t = I18N[userSettings.language] || I18N.th;
     appendCommsEntry('assistant', userSettings.language === 'en' ? 'Comms log cleared, Sir. All systems standing by.' : 'ล้างประวัติการสื่อสารเรียบร้อยครับท่าน ระบบพร้อมรับคำสั่งการครับ');
+    updateWelcomeHeroVisibility();
+}
+
+// ==================== CHATGPT SIDEBAR & UI HELPERS ====================
+
+function toggleSidebar() {
+    const container = document.getElementById('app-container');
+    if (!container) return;
+    container.classList.toggle('sidebar-collapsed');
+    playBeep(1100, 0.03);
+    try {
+        localStorage.setItem('jarvis_sidebar_collapsed', container.classList.contains('sidebar-collapsed'));
+    } catch (e) {}
+}
+
+function handleNewMissionClick() {
+    playBeep(1300, 0.05);
+    switchView('chat');
+    document.getElementById('hud-command-input')?.focus();
+}
+
+function copyMessageText(btn, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = userSettings.language === 'en' ? '<span>✓ COPIED</span>' : '<span>✓ คัดลอกแล้ว</span>';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        });
+    }
+}
+
+function updateWelcomeHeroVisibility() {
+    const hero = document.getElementById('chat-welcome-hero');
+    const container = document.getElementById('chat-messages');
+    if (hero && container) {
+        if (container.children.length > 1) {
+            hero.style.display = 'none';
+        } else {
+            hero.style.display = 'flex';
+        }
+    }
 }
 
 // ==================== MANUAL MODAL ====================

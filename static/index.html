@@ -3,251 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="J.A.R.V.I.S. — Tactical Mission Control & Strategic Life Assistant (Stark OS)">
+    <meta name="description" content="J.A.R.V.I.S. — ChatGPT-Style Tactical Mission Control // STARK OS">
     <title>J.A.R.V.I.S. — Tactical Mission Control // STARK OS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=4.0">
 </head>
-<body class="stark-hud">
+<body class="stark-hud chatgpt-theme">
     <!-- Ambient Hologram Grid & Radial Energy Field -->
-    <div class="hud-scanlines"></div>
+    <div class="hud-scanlines" id="hud-scanlines"></div>
     <div class="hud-vignette"></div>
 
-    <!-- ===== TOP HUD STICKY BAR (HEADER + TELEMETRY) ===== -->
-    <div id="hud-top-bar" class="hud-sticky-bar">
-        <!-- ===== TOP HUD HEADER ===== -->
-        <header id="hud-header">
-            <div class="header-section header-left">
-                <div class="stark-brand" onclick="switchView('dashboard')" title="Return to Mission Control">
+    <div class="chatgpt-app-container" id="app-container">
+        
+        <!-- ==================== CHATGPT-STYLE SIDEBAR ==================== -->
+        <aside class="chatgpt-sidebar" id="chatgpt-sidebar">
+            <div class="sidebar-header">
+                <div class="stark-brand" onclick="switchView('chat')" title="J.A.R.V.I.S. Tactical AI">
                     <div class="arc-mini-icon">
                         <div class="arc-core-pulse"></div>
                     </div>
                     <div class="brand-text">
-                        <span class="brand-title">STARK INDUSTRIES</span>
-                        <span class="brand-sub">J.A.R.V.I.S. <span class="version-tag">OS v10.4</span></span>
+                        <span class="brand-title">STARK OS</span>
+                        <span class="brand-sub">J.A.R.V.I.S. <span class="version-tag">v10.4</span></span>
                     </div>
                 </div>
-                <div class="hud-badge online" id="system-badge" title="สถานะระบบปกติ">
-                    <span class="badge-dot"></span>
-                    <span class="badge-text" id="system-status-text">ระบบทั้งหมดพร้อมปฏิบัติการ</span>
-                </div>
-            </div>
-
-            <nav class="header-section header-nav" aria-label="Main Navigation">
-                <div class="nav-pill-dock">
-                    <button class="hud-nav-btn active" data-view="dashboard" id="nav-dashboard">
-                        <span class="nav-glow"></span>
-                        <span class="nav-code">01</span>
-                        <span class="nav-label">ศูนย์บัญชาการภารกิจ</span>
-                    </button>
-                    <button class="hud-nav-btn" data-view="goals" id="nav-goals">
-                        <span class="nav-glow"></span>
-                        <span class="nav-code">02</span>
-                        <span class="nav-label">ผังยุทธการหลัก</span>
-                    </button>
-                    <button class="hud-nav-btn" data-view="chat" id="nav-chat">
-                        <span class="nav-glow"></span>
-                        <span class="nav-code">03</span>
-                        <span class="nav-label">บันทึกการสื่อสาร</span>
-                        <span class="nav-dot" id="chat-dot" style="display:none;"></span>
-                    </button>
-                </div>
-            </nav>
-
-            <div class="header-section header-right">
-                <div class="hud-controls">
-                    <button class="hud-toggle-btn active" id="btn-toggle-sfx">
-                        <span class="toggle-icon">🔊</span>
-                        <span class="toggle-text">เอฟเฟกต์</span>
-                    </button>
-                    <button class="hud-toggle-btn active" id="btn-toggle-voice">
-                        <span class="toggle-icon">🎙️</span>
-                        <span class="toggle-text">เสียง AI</span>
-                    </button>
-                    <button class="hud-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()">
-                        <span class="toggle-icon">⚙️</span>
-                        <span class="toggle-text">ตั้งค่าระบบ</span>
-                    </button>
-                </div>
-                <div class="clock-display" id="hud-clock">
-                    <span class="time-main" id="time-main">00:00:00</span>
-                    <span class="time-zone">ICT // เวลาประจำการ</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- ===== TELEMETRY TICKER BAR ===== -->
-        <section id="telemetry-bar">
-            <div class="telemetry-item">
-                <span class="t-label" id="lbl-t-directives">ยุทธการหลัก:</span>
-                <span class="t-value" id="t-directives">0 กำลังดำเนินการ</span>
-            </div>
-            <div class="telemetry-divider">//</div>
-            <div class="telemetry-item">
-                <span class="t-label" id="lbl-t-today-ops">ภารกิจวันนี้:</span>
-                <span class="t-value" id="t-today-ops">0 / 0</span>
-            </div>
-            <div class="telemetry-divider">//</div>
-            <div class="telemetry-item">
-                <span class="t-label" id="lbl-t-efficiency">ประสิทธิภาพเตาปฏิกรณ์:</span>
-                <span class="t-value highlight" id="t-efficiency">0%</span>
-            </div>
-            <div class="telemetry-divider">//</div>
-            <div class="telemetry-item">
-                <span class="t-label" id="lbl-t-streak">ความต่อเนื่องภารกิจ:</span>
-                <span class="t-value amber" id="t-streak">0 วัน</span>
-            </div>
-            <div class="telemetry-divider">//</div>
-            <div class="telemetry-item">
-                <span class="t-label" id="lbl-t-neural">ระบบประมวลผล:</span>
-                <span class="t-value cyan" id="t-neural">GEMINI-FLASH พร้อมใช้งาน</span>
-            </div>
-        </section>
-    </div>
-
-    <!-- ===== MAIN COMMAND STAGE ===== -->
-    <main id="hud-stage">
-
-        <!-- ===== CENTRAL HOLOGRAPHIC CONSOLE ===== -->
-        <section id="hologram-bay">
-            <div class="reactor-wrapper">
-                <div class="hud-reticle"></div>
-                <!-- Dynamic Arc Reactor Canvas -->
-                <canvas id="arc-reactor-canvas" width="320" height="320"></canvas>
-                
-                <div class="reactor-readout">
-                    <span class="reactor-state" id="reactor-state-text">สแตนด์บาย // พร้อมรับคำสั่ง</span>
-                    <span class="reactor-sub" id="reactor-sub-text">กดไมค์หรือพิมพ์คำสั่งเพื่อสั่งการ</span>
-                </div>
-            </div>
-
-            <!-- Command Protocols Quick Chips -->
-            <div class="protocol-chips">
-                <button class="protocol-chip primary" id="btn-protocol-briefing" onclick="runBriefingProtocol()">
-                    <span class="chip-glow"></span>
-                    <span class="chip-icon">⚡</span>
-                    <span class="chip-text">โปรโตคอล: รายงานสรุปประจำวัน</span>
-                </button>
-                <button class="protocol-chip" onclick="quickSend('scan')">
-                    <span class="chip-icon">🔍</span>
-                    <span class="chip-text" id="chip-scan-text">สแกนสถานะยุทธการ</span>
-                </button>
-                <button class="protocol-chip" onclick="showAddGoalModal()">
-                    <span class="chip-icon">🎯</span>
-                    <span class="chip-text" id="chip-new-text">สร้างยุทธการใหม่</span>
-                </button>
-                <button class="protocol-chip" onclick="quickSend('advice')">
-                    <span class="chip-icon">💡</span>
-                    <span class="chip-text" id="chip-advice-text">คำแนะนำเชิงกลยุทธ์</span>
-                </button>
-            </div>
-
-            <!-- Unified HUD Input & Voice Transmission -->
-            <div class="command-input-bay">
-                <button class="mic-btn" id="btn-mic" title="กดเพื่อสั่งงานด้วยเสียง (Speech Input)" onclick="toggleVoiceInput()">
-                    <div class="mic-wave"></div>
-                    <svg class="mic-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                        <line x1="12" y1="19" x2="12" y2="23"/>
-                        <line x1="8" y1="23" x2="16" y2="23"/>
+                <button class="sidebar-collapse-btn" id="btn-sidebar-toggle" onclick="toggleSidebar()" title="ย่อ / ขยายแถบข้าง (Toggle Sidebar)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="9" y1="3" x2="9" y2="21"/>
                     </svg>
                 </button>
+            </div>
 
-                <div class="terminal-input-wrapper">
-                    <span class="terminal-prompt">&gt;</span>
-                    <input type="text" id="hud-command-input" placeholder="สั่งการ J.A.R.V.I.S. หรือระบุยุทธการที่ต้องการ (เช่น 'วางแผนฟิตหุ่น', '/briefing')..." autocomplete="off">
-                    <button class="transmit-btn" id="btn-transmit" onclick="submitCommand()">
-                        <span id="lbl-btn-transmit">ส่งคำสั่ง</span>
+            <!-- New Mission / Directive Button (Like ChatGPT New Chat) -->
+            <div class="sidebar-new-mission">
+                <button class="btn-new-chat-stark" onclick="handleNewMissionClick()">
+                    <span class="new-chat-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
-                            <polyline points="12 5 19 12 12 19"></polyline>
                         </svg>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== TAB 1: MISSION CONTROL (DASHBOARD) ===== -->
-        <section class="hud-view active" id="view-dashboard">
-            <div class="dashboard-panels">
-                
-                <!-- Active Directives Panel -->
-                <div class="hud-panel" id="panel-directives">
-                    <div class="panel-header">
-                        <div class="panel-title-group">
-                            <span class="panel-tag" id="lbl-panel-directives-tag">[ยุทธการหลัก]</span>
-                            <h2 id="lbl-panel-directives-title">ยุทธการเชิงกลยุทธ์</h2>
-                        </div>
-                        <span class="panel-action-link" id="lbl-panel-directives-link" onclick="switchView('goals')">ดูผังยุทธการทั้งหมด &rarr;</span>
-                    </div>
-                    <div class="panel-body" id="dashboard-goals-list">
-                        <div class="hud-empty-state">
-                            <div class="empty-reticle"></div>
-                            <p class="empty-title">ยังไม่มีการกำหนดยุทธการหลัก</p>
-                            <p class="empty-desc">สั่งการ J.A.R.V.I.S. หรือกด 'สร้างยุทธการใหม่' เพื่อเริ่มภารกิจแรก</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Today's Tactical Operations Panel -->
-                <div class="hud-panel" id="panel-operations">
-                    <div class="panel-header">
-                        <div class="panel-title-group">
-                            <span class="panel-tag" id="lbl-panel-ops-tag">[ภารกิจวันนี้]</span>
-                            <h2 id="lbl-panel-ops-title">ปฏิบัติการประจำวัน</h2>
-                        </div>
-                        <span class="panel-count-badge" id="today-count-badge">0 ภารกิจคงค้าง</span>
-                    </div>
-                    <div class="panel-body" id="dashboard-today-list">
-                        <div class="hud-empty-state">
-                            <div class="empty-reticle"></div>
-                            <p class="empty-title">ไม่มีภารกิจคงค้างสำหรับวันนี้</p>
-                            <p class="empty-desc">ทุกยุทธการพร้อมรับคำสั่งการใหม่จากท่านครับ</p>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ===== TAB 2: DIRECTIVES MATRIX (GOALS) ===== -->
-        <section class="hud-view" id="view-goals">
-            <div class="matrix-header">
-                <div class="matrix-title-group">
-                    <span class="panel-tag" id="lbl-matrix-tag">[ผังยุทธการ]</span>
-                    <h1 id="lbl-matrix-title">ภาพรวมยุทธการเชิงกลยุทธ์ทั้งหมด</h1>
-                </div>
-                <button class="hud-btn primary" id="btn-matrix-new" onclick="showAddGoalModal()">
-                    <span>+</span> <span id="lbl-btn-matrix-new">เพิ่มยุทธการใหม่</span>
+                    </span>
+                    <span class="new-chat-text" id="lbl-btn-new-chat">ยุทธการใหม่ / สนทนาใหม่</span>
+                    <span class="new-chat-badge">⚡</span>
                 </button>
             </div>
-            <div class="matrix-grid" id="goals-grid">
-                <!-- Dynamically Rendered Cards -->
-            </div>
-        </section>
 
-        <!-- ===== TAB 3: COMMS LOG (CHAT) ===== -->
-        <section class="hud-view" id="view-chat">
-            <div class="comms-container">
-                <div class="comms-header">
-                    <div class="comms-channel">
-                        <span class="channel-indicator"></span>
-                        <span class="channel-name" id="lbl-comms-channel">ช่องทางสื่อสารปลอดภัย // โปรโตคอล STARK-01</span>
+            <!-- Primary Navigation Menu -->
+            <nav class="sidebar-nav" aria-label="Main Navigation">
+                <div class="sidebar-section-title" id="lbl-sidebar-nav-title">เมนูควบคุมหลัก</div>
+                <button class="hud-nav-btn active" data-view="chat" id="nav-chat">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-label" id="lbl-nav-chat">ระบบสื่อสาร J.A.R.V.I.S.</span>
+                    <span class="nav-dot" id="chat-dot" style="display:none;"></span>
+                </button>
+                <button class="hud-nav-btn" data-view="dashboard" id="nav-dashboard">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-label" id="lbl-nav-dashboard">ศูนย์บัญชาการภารกิจ</span>
+                </button>
+                <button class="hud-nav-btn" data-view="goals" id="nav-goals">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label" id="lbl-nav-goals">ผังยุทธการหลัก</span>
+                </button>
+            </nav>
+
+            <!-- Directives & Mission Threads (Like ChatGPT Chat History) -->
+            <div class="sidebar-history-container">
+                <div class="sidebar-section-title">
+                    <span id="lbl-sidebar-directives-title">ยุทธการที่กำลังดำเนินอยู่</span>
+                    <span class="sidebar-count" id="sidebar-directives-count">0</span>
+                </div>
+                <div class="sidebar-history-list" id="sidebar-directives-list">
+                    <!-- Populated dynamically via JS -->
+                    <div class="sidebar-empty-hint">ยังไม่มีรายการยุทธการ</div>
+                </div>
+            </div>
+
+            <!-- Sidebar Telemetry Mini Widget -->
+            <div class="sidebar-telemetry-box">
+                <div class="sidebar-telem-header">
+                    <span class="telem-label" id="lbl-t-efficiency">ประสิทธิภาพเตาปฏิกรณ์:</span>
+                    <span class="telem-val highlight" id="t-efficiency">0%</span>
+                </div>
+                <div class="telem-bar">
+                    <div class="telem-bar-fill" id="t-efficiency-bar" style="width: 0%;"></div>
+                </div>
+                <div class="sidebar-telem-stats">
+                    <div class="telem-stat">
+                        <span class="t-sub" id="lbl-t-streak">ต่อเนื่อง:</span>
+                        <span class="t-num amber" id="t-streak">0 วัน</span>
                     </div>
-                    <button class="comms-clear-btn" id="lbl-btn-comms-clear" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
-                        ล้างประวัติ
+                    <div class="telem-stat">
+                        <span class="t-sub" id="lbl-t-today-ops">ภารกิจวันนี้:</span>
+                        <span class="t-num" id="t-today-ops">0 / 0</span>
+                    </div>
+                </div>
+                <!-- Hidden elements kept for complete JS compatibility -->
+                <span id="t-directives" style="display:none;"></span>
+                <span id="lbl-t-directives" style="display:none;"></span>
+                <span id="lbl-t-neural" style="display:none;"></span>
+                <span id="t-neural" style="display:none;"></span>
+            </div>
+
+            <!-- Sidebar Footer: User Profile & Quick Controls -->
+            <div class="sidebar-footer">
+                <div class="user-profile-row" onclick="openSettingsModal()" title="คลิกเพื่อตั้งค่าระบบ">
+                    <div class="user-avatar-badge">
+                        <div class="user-avatar-glow"></div>
+                        <span class="user-avatar-text">TS</span>
+                    </div>
+                    <div class="user-profile-meta">
+                        <span class="user-callsign" id="sidebar-user-callsign">Tony Stark</span>
+                        <span class="user-status-text" id="system-status-text">ระบบพร้อมปฏิบัติการ</span>
+                    </div>
+                </div>
+                <div class="sidebar-quick-controls">
+                    <button class="icon-toggle-btn active" id="btn-toggle-sfx" title="สลับเสียงเอฟเฟกต์">
+                        <span class="toggle-icon">🔊</span>
+                    </button>
+                    <button class="icon-toggle-btn active" id="btn-toggle-voice" title="สลับเสียงพากย์ AI">
+                        <span class="toggle-icon">🎙️</span>
+                    </button>
+                    <button class="icon-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()" title="ตั้งค่าระบบ">
+                        <span class="toggle-icon">⚙️</span>
                     </button>
                 </div>
-                <div class="comms-messages" id="chat-messages">
-                    <!-- Messages will be appended here -->
-                </div>
             </div>
-        </section>
+        </aside>
 
-    </main>
+        <!-- ==================== MAIN STAGE ==================== -->
+        <div class="chatgpt-main-wrapper">
+            
+            <!-- ChatGPT Top Bar -->
+            <header class="chatgpt-topbar">
+                <div class="topbar-left">
+                    <button class="topbar-toggle-sidebar" id="btn-topbar-sidebar" onclick="toggleSidebar()" title="เปิด/ปิด แถบข้าง">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="9" y1="3" x2="9" y2="21"/>
+                        </svg>
+                    </button>
+
+                    <!-- ChatGPT Model Selector Pill -->
+                    <div class="chatgpt-model-selector" onclick="openSettingsModal()" title="คลิกเพื่อดูและปรับแต่งโมเดล">
+                        <div class="model-pill">
+                            <span class="model-core-icon">⚡</span>
+                            <span class="model-name">J.A.R.V.I.S. <span class="model-version">2.5 Flash</span></span>
+                            <span class="model-chevron">▾</span>
+                        </div>
+                        <div class="hud-badge online" id="system-badge" title="สถานะระบบปกติ">
+                            <span class="badge-dot"></span>
+                            <span class="badge-pulse"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Protocol Shortcut Pills in Top Bar -->
+                <div class="topbar-protocols">
+                    <button class="topbar-protocol-btn primary" id="btn-protocol-briefing" onclick="runBriefingProtocol()" title="รายงานสรุปยุทธการประจำวัน">
+                        <span class="proto-icon">⚡</span>
+                        <span class="proto-label">Daily Briefing</span>
+                    </button>
+                    <button class="topbar-protocol-btn" onclick="quickSend('scan')" title="สแกนสถานะยุทธการ">
+                        <span class="proto-icon">🔍</span>
+                        <span class="proto-label" id="chip-scan-text">สแกนยุทธการ</span>
+                    </button>
+                    <button class="topbar-protocol-btn" onclick="quickSend('advice')" title="ขอคำแนะนำกลยุทธ์">
+                        <span class="proto-icon">💡</span>
+                        <span class="proto-label" id="chip-advice-text">คำแนะนำยุทธวิธี</span>
+                    </button>
+                    <button class="topbar-protocol-btn" onclick="showAddGoalModal()" title="สร้างยุทธการใหม่">
+                        <span class="proto-icon">🎯</span>
+                        <span class="proto-label" id="chip-new-text">สร้างยุทธการ</span>
+                    </button>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="clock-display" id="hud-clock">
+                        <span class="time-main" id="time-main">00:00:00</span>
+                        <span class="time-zone">ICT // STARK TIME</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Scrollable Stage Area -->
+            <main class="chatgpt-stage-scrollable">
+
+                <!-- ==================== VIEW 1: CHATGPT COMMS (DEFAULT) ==================== -->
+                <section class="hud-view active" id="view-chat">
+                    <div class="chatgpt-conversation-container">
+                        
+                        <!-- Header & Channel Name -->
+                        <div class="comms-header-chatgpt">
+                            <div class="comms-channel">
+                                <span class="channel-indicator"></span>
+                                <span class="channel-name" id="lbl-comms-channel">ช่องทางสื่อสารเชิงยุทธการปลอดภัย // STARK-01 DIRECT LINK</span>
+                            </div>
+                            <button class="comms-clear-btn" id="lbl-btn-comms-clear" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
+                                ล้างประวัติ
+                            </button>
+                        </div>
+
+                        <!-- Chat Messages Container (Populated via JS) -->
+                        <div class="chatgpt-messages-stream" id="chat-messages">
+                            <!-- Populated via loadChatHistory() -->
+                        </div>
+
+                        <!-- Welcome Hero & Prompt Cards (Shown at start or when empty) -->
+                        <div class="chatgpt-welcome-hero" id="chat-welcome-hero">
+                            <div class="hero-reactor-center">
+                                <div class="hud-reticle"></div>
+                                <canvas id="arc-reactor-canvas" width="220" height="220"></canvas>
+                                <div class="reactor-readout">
+                                    <span class="reactor-state" id="reactor-state-text">สแตนด์บาย // พร้อมรับคำสั่ง</span>
+                                    <span class="reactor-sub" id="reactor-sub-text">พิมพ์คำสั่งการ หรือกดไมค์เพื่อสั่งการด้วยเสียง</span>
+                                </div>
+                            </div>
+                            
+                            <h1 class="hero-title">J.A.R.V.I.S.</h1>
+                            <p class="hero-subtitle">Tactical Strategic Intelligence // ยินดีรับใช้ครับท่าน มีคำสั่งการใดให้กระผมดำเนินการ?</p>
+
+                            <!-- ChatGPT 4 Prompt Starter Cards Grid -->
+                            <div class="chatgpt-starter-grid">
+                                <div class="starter-card" onclick="runBriefingProtocol()">
+                                    <div class="starter-card-top">
+                                        <span class="starter-icon">⚡</span>
+                                        <span class="starter-tag">PROTOCOL</span>
+                                    </div>
+                                    <div class="starter-card-title">Daily Briefing</div>
+                                    <div class="starter-card-desc">รายงานสรุปภาพรวมยุทธการ ภารกิจเร่งด่วนประจำวัน และวิเคราะห์กลยุทธ์</div>
+                                </div>
+                                <div class="starter-card" onclick="showAddGoalModal()">
+                                    <div class="starter-card-top">
+                                        <span class="starter-icon">🎯</span>
+                                        <span class="starter-tag">DIRECTIVE</span>
+                                    </div>
+                                    <div class="starter-card-title">สร้างยุทธการใหม่</div>
+                                    <div class="starter-card-desc">กำหนดเป้าหมายเชิงกลยุทธ์ พร้อมแบ่งขั้นตอน Phase และภารกิจปฏิบัติการ</div>
+                                </div>
+                                <div class="starter-card" onclick="quickSend('advice')">
+                                    <div class="starter-card-top">
+                                        <span class="starter-icon">💡</span>
+                                        <span class="starter-tag">STRATEGY</span>
+                                    </div>
+                                    <div class="starter-card-title">คำแนะนำเชิงยุทธศาสตร์</div>
+                                    <div class="starter-card-desc">ขอคำปรึกษาการจัดลำดับความสำคัญของงาน หรือการแก้ไขอุปสรรค</div>
+                                </div>
+                                <div class="starter-card" onclick="quickSend('scan')">
+                                    <div class="starter-card-top">
+                                        <span class="starter-icon">🔍</span>
+                                        <span class="starter-tag">TELEMETRY</span>
+                                    </div>
+                                    <div class="starter-card-title">สแกนสถานะยุทธการ</div>
+                                    <div class="starter-card-desc">ตรวจสอบเปอร์เซ็นต์ความคืบหน้าของทุกเป้าหมาย และงานคงค้างทั้งหมด</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ==================== VIEW 2: MISSION CONTROL (DASHBOARD) ==================== -->
+                <section class="hud-view" id="view-dashboard">
+                    <div class="chatgpt-dashboard-container">
+                        
+                        <div class="dashboard-header-hero">
+                            <div class="dash-title-group">
+                                <span class="panel-tag">[MISSION CONTROL]</span>
+                                <h2>ศูนย์บัญชาการยุทธการ & ปฏิบัติการประจำวัน</h2>
+                                <p class="dash-subtitle">แดชบอร์ดติดตามความก้าวหน้าและการปฏิบัติการเชิงยุทธศาสตร์</p>
+                            </div>
+                            <button class="hud-btn primary" onclick="showAddGoalModal()">
+                                <span>+</span> <span>สร้างยุทธการใหม่</span>
+                            </button>
+                        </div>
+
+                        <div class="dashboard-panels">
+                            <!-- Active Directives Panel -->
+                            <div class="hud-panel" id="panel-directives">
+                                <div class="panel-header">
+                                    <div class="panel-title-group">
+                                        <span class="panel-tag" id="lbl-panel-directives-tag">[ยุทธการหลัก]</span>
+                                        <h2 id="lbl-panel-directives-title">ยุทธการเชิงกลยุทธ์</h2>
+                                    </div>
+                                    <span class="panel-action-link" id="lbl-panel-directives-link" onclick="switchView('goals')">ดูผังยุทธการทั้งหมด &rarr;</span>
+                                </div>
+                                <div class="panel-body" id="dashboard-goals-list">
+                                    <!-- Populated via renderDashboardGoals() -->
+                                </div>
+                            </div>
+
+                            <!-- Today's Tactical Operations Panel -->
+                            <div class="hud-panel" id="panel-operations">
+                                <div class="panel-header">
+                                    <div class="panel-title-group">
+                                        <span class="panel-tag" id="lbl-panel-ops-tag">[ภารกิจวันนี้]</span>
+                                        <h2 id="lbl-panel-ops-title">ปฏิบัติการประจำวัน</h2>
+                                    </div>
+                                    <span class="panel-count-badge" id="today-count-badge">0 ภารกิจคงค้าง</span>
+                                </div>
+                                <div class="panel-body" id="dashboard-today-list">
+                                    <!-- Populated via renderTodayTasks() -->
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ==================== VIEW 3: DIRECTIVES MATRIX (GOALS) ==================== -->
+                <section class="hud-view" id="view-goals">
+                    <div class="chatgpt-goals-container">
+                        <div class="matrix-header">
+                            <div class="matrix-title-group">
+                                <span class="panel-tag" id="lbl-matrix-tag">[ผังยุทธการ]</span>
+                                <h1 id="lbl-matrix-title">ภาพรวมยุทธการเชิงกลยุทธ์ทั้งหมด</h1>
+                            </div>
+                            <button class="hud-btn primary" id="btn-matrix-new" onclick="showAddGoalModal()">
+                                <span>+</span> <span id="lbl-btn-matrix-new">เพิ่มยุทธการใหม่</span>
+                            </button>
+                        </div>
+                        <div class="matrix-grid" id="goals-grid">
+                            <!-- Dynamically Rendered Cards -->
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+
+            <!-- ==================== CHATGPT FLOATING BOTTOM INPUT DOCK ==================== -->
+            <footer class="chatgpt-input-dock">
+                <div class="chatgpt-input-capsule">
+                    
+                    <!-- Voice Mic Button -->
+                    <button class="mic-btn" id="btn-mic" title="สั่งงานด้วยเสียง (Speech Input)" onclick="toggleVoiceInput()">
+                        <div class="mic-wave"></div>
+                        <svg class="mic-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </button>
+
+                    <!-- Text Input Field -->
+                    <div class="input-text-area-wrapper">
+                        <input type="text" id="hud-command-input" placeholder="สั่งการ J.A.R.V.I.S. หรือพิมพ์คำถาม (เช่น 'วางแผนออกกำลังกาย', '/briefing', 'วิเคราะห์งานวันนี้')..." autocomplete="off">
+                    </div>
+
+                    <!-- Transmit / Send Arrow Button (Signature ChatGPT Style) -->
+                    <button class="transmit-btn-chatgpt" id="btn-transmit" onclick="submitCommand()" title="ส่งคำสั่ง (Enter)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="19" x2="12" y2="5"></line>
+                            <polyline points="5 12 12 5 19 12"></polyline>
+                        </svg>
+                        <span id="lbl-btn-transmit" style="display:none;">ส่งคำสั่ง</span>
+                    </button>
+
+                </div>
+                
+                <div class="chatgpt-input-disclaimer">
+                    <span>⚡ J.A.R.V.I.S. Neural System v10.4 // Stark Industries Strategic Intelligence — ข้อมูลได้รับการเข้ารหัสระดับ Stark Security Level 5</span>
+                </div>
+            </footer>
+
+        </div>
+    </div>
 
     <!-- ===== AUDIO ELEMENT FOR J.A.R.V.I.S. VOICE ===== -->
     <audio id="jarvis-audio-player" style="display:none;" preload="auto"></audio>
@@ -424,6 +547,6 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=4.0"></script>
 </body>
 </html>
