@@ -1021,6 +1021,7 @@ function updateUILanguage(lang) {
 function openSettingsModal() {
     playBeep(1100, 0.05);
     applySettingsToDOM();
+    loadApiKeysSettings();
     document.getElementById('settings-modal').style.display = 'flex';
 }
 
@@ -1039,6 +1040,23 @@ function saveSettings() {
     try {
         localStorage.setItem('stark_hud_settings', JSON.stringify(userSettings));
     } catch (e) {}
+
+    // Save API keys if entered
+    const groqKeyInput = document.getElementById('setting-groq-key')?.value.trim();
+    const geminiKeyInput = document.getElementById('setting-gemini-key')?.value.trim();
+    if (groqKeyInput || geminiKeyInput) {
+        fetch('/api/settings/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groq_api_key: groqKeyInput || null,
+                gemini_api_key: geminiKeyInput || null
+            })
+        }).then(() => {
+            loadApiKeysSettings();
+            loadAvailableModels();
+        });
+    }
 
     playConfirmChime();
     closeSettingsModal();
@@ -1143,6 +1161,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTelemetry();
     loadChatHistory();
     setInterval(loadTelemetry, 5000);
+
+    // Load available AI models & API Keys
+    loadAvailableModels();
+    loadApiKeysSettings();
 
     // Audio context initialization on click
     document.body.addEventListener('click', () => {
@@ -1557,6 +1579,7 @@ async function submitCommand() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message,
+                model: currentModel || 'gemini-2.5-flash',
                 language: userSettings.language,
                 callsign: userSettings.callsign
             }),
@@ -1918,3 +1941,196 @@ function escapeForJsString(text) {
     if (!text) return '';
     return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ');
 }
+
+// ==================== MULTI-MODEL AI ROUTING & GROQ API ====================
+let currentModel = localStorage.getItem('jarvis_active_model') || 'gemini-2.5-flash';
+let cachedModelsList = [];
+let hasGroqKeyConfigured = false;
+
+async function loadAvailableModels() {
+    try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+        cachedModelsList = data.models || [];
+        hasGroqKeyConfigured = data.has_groq_key;
+        renderModelPickerPopup(cachedModelsList, data.has_groq_key);
+        updateActiveModelPills();
+    } catch (e) {
+        console.error('Error loading AI models:', e);
+    }
+}
+
+function renderModelPickerPopup(models, hasGroqKey) {
+    const listEl = document.getElementById('model-picker-list');
+    if (!listEl) return;
+    
+    const googleModels = models.filter(m => m.provider === 'Google');
+    const groqModels = models.filter(m => m.provider === 'Groq');
+    
+    let html = '';
+    
+    if (googleModels.length > 0) {
+        html += `<div class="model-group-divider"><span>GOOGLE GEMINI</span></div>`;
+        googleModels.forEach(m => {
+            const isActive = m.id === currentModel;
+            const badgeClass = m.badge === 'แนะนำ' ? 'badge-rec' : 'badge-gemini';
+            html += `
+                <div class="model-item-row ${isActive ? 'active' : ''}" onclick="selectModel('${m.id}', '${m.short_name}')" data-model="${m.id}">
+                    <div class="model-item-left">
+                        <div class="model-item-title-row">
+                            <span class="model-item-title">${m.name}</span>
+                            <span class="${badgeClass}">${m.badge}</span>
+                        </div>
+                        <span class="model-item-desc">${m.description}</span>
+                    </div>
+                    <div class="model-item-check">✓</div>
+                </div>
+            `;
+        });
+    }
+
+    if (groqModels.length > 0) {
+        html += `<div class="model-group-divider"><span>GROQ LPU (ULTRA FAST INFERENCE)</span> ${hasGroqKey ? '<span style="color:#34a853;font-size:10px;">● CONNECTED</span>' : '<span style="color:#fbbc04;font-size:10px;">● KEY NEEDED</span>'}</div>`;
+        groqModels.forEach(m => {
+            const isActive = m.id === currentModel;
+            html += `
+                <div class="model-item-row ${isActive ? 'active' : ''}" onclick="selectModel('${m.id}', '${m.short_name}')" data-model="${m.id}">
+                    <div class="model-item-left">
+                        <div class="model-item-title-row">
+                            <span class="model-item-title">${m.name}</span>
+                            <span class="badge-groq">${m.badge}</span>
+                        </div>
+                        <span class="model-item-desc">${m.description}</span>
+                    </div>
+                    <div class="model-item-check">✓</div>
+                </div>
+            `;
+        });
+    }
+    
+    listEl.innerHTML = html;
+}
+
+function updateActiveModelPills() {
+    const activeObj = cachedModelsList.find(m => m.id === currentModel);
+    const shortName = activeObj ? activeObj.short_name : (currentModel.includes('flash') ? '2.5 Flash' : (currentModel.includes('llama') ? 'Llama 3.3' : 'Pro'));
+    
+    const capsuleNameEl = document.getElementById('capsule-model-name');
+    if (capsuleNameEl) capsuleNameEl.textContent = shortName;
+    
+    const topbarNameEl = document.getElementById('topbar-model-name');
+    if (topbarNameEl) topbarNameEl.textContent = shortName;
+
+    document.querySelectorAll('.model-item-row').forEach(row => {
+        row.classList.toggle('active', row.dataset.model === currentModel);
+    });
+}
+
+function selectModel(modelId, shortName) {
+    currentModel = modelId;
+    try {
+        localStorage.setItem('jarvis_active_model', modelId);
+    } catch(e) {}
+    
+    updateActiveModelPills();
+    toggleModelPicker(false);
+    playConfirmChime();
+}
+
+function toggleModelPicker(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const popup = document.getElementById('model-picker-popup');
+    if (!popup) return;
+
+    if (e === false || popup.style.display === 'flex') {
+        popup.style.display = 'none';
+        return;
+    }
+
+    let trigger = null;
+    if (e && e.currentTarget) {
+        trigger = e.currentTarget;
+    } else {
+        trigger = document.getElementById('capsule-model-pill') || document.getElementById('topbar-model-selector');
+    }
+
+    if (trigger) {
+        const rect = trigger.getBoundingClientRect();
+        if (rect.top > window.innerHeight / 2) {
+            popup.style.bottom = `${window.innerHeight - rect.top + 10}px`;
+            popup.style.top = 'auto';
+            const rightOffset = Math.max(16, window.innerWidth - rect.right);
+            popup.style.right = `${rightOffset}px`;
+            popup.style.left = 'auto';
+        } else {
+            popup.style.top = `${rect.bottom + 10}px`;
+            popup.style.bottom = 'auto';
+            popup.style.left = `${Math.max(16, rect.left)}px`;
+            popup.style.right = 'auto';
+        }
+    } else {
+        popup.style.bottom = '88px';
+        popup.style.right = '24px';
+    }
+
+    popup.style.display = 'flex';
+    playBeep(1200, 0.04);
+}
+
+// Global click to close model picker popup
+document.addEventListener('click', (e) => {
+    const popup = document.getElementById('model-picker-popup');
+    if (!popup || popup.style.display === 'none') return;
+    if (!popup.contains(e.target) && !e.target.closest('#capsule-model-pill') && !e.target.closest('#topbar-model-selector')) {
+        popup.style.display = 'none';
+    }
+});
+
+async function loadApiKeysSettings() {
+    try {
+        const res = await fetch('/api/settings/keys');
+        const data = await res.json();
+        hasGroqKeyConfigured = data.has_groq;
+        
+        const tagGroq = document.getElementById('status-tag-groq');
+        if (tagGroq) {
+            if (data.has_groq) {
+                tagGroq.textContent = 'เชื่อมต่อแล้ว ✓';
+                tagGroq.className = 'api-status-tag connected';
+            } else {
+                tagGroq.textContent = 'ยังไม่ได้เชื่อมต่อ';
+                tagGroq.className = 'api-status-tag';
+            }
+        }
+        
+        const inputGroq = document.getElementById('setting-groq-key');
+        if (inputGroq) {
+            inputGroq.placeholder = data.groq_masked ? `${data.groq_masked} (เชื่อมต่อแล้ว)` : 'gsk_...';
+        }
+        
+        const tagGemini = document.getElementById('status-tag-gemini');
+        if (tagGemini) {
+            if (data.has_gemini) {
+                tagGemini.textContent = 'เชื่อมต่อแล้ว ✓';
+                tagGemini.className = 'api-status-tag connected';
+            } else {
+                tagGemini.textContent = 'ยังไม่ได้เชื่อมต่อ';
+                tagGemini.className = 'api-status-tag';
+            }
+        }
+        
+        const inputGemini = document.getElementById('setting-gemini-key');
+        if (inputGemini) {
+            inputGemini.placeholder = data.gemini_masked ? `${data.gemini_masked} (เชื่อมต่อแล้ว)` : 'AIzaSy...';
+        }
+    } catch (e) {
+        console.error('Error fetching API keys:', e);
+    }
+}
+
+function toggleKeyVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+

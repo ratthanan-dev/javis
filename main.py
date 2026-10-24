@@ -67,6 +67,7 @@ def serve_index():
 
 class ChatRequest(BaseModel):
     message: str
+    model: Optional[str] = "gemini-2.5-flash"
     language: Optional[str] = "th"
     callsign: Optional[str] = "ท่าน"
 
@@ -80,8 +81,13 @@ def chat(req: ChatRequest):
     # บันทึกข้อความผู้ใช้
     db.save_message("user", user_msg)
     
-    # ส่งให้ J.A.R.V.I.S. ประมวลผล
-    result = javis_ai.send_message(user_msg, language=req.language or "th", callsign=req.callsign or "ท่าน")
+    # ส่งให้ J.A.R.V.I.S. ประมวลผล (พร้อมระบุโมเดลที่เลือก)
+    result = javis_ai.send_message(
+        user_msg, 
+        model=req.model or "gemini-2.5-flash",
+        language=req.language or "th", 
+        callsign=req.callsign or "ท่าน"
+    )
     
     # บันทึกข้อความ J.A.R.V.I.S.
     db.save_message("assistant", result["message"])
@@ -92,6 +98,95 @@ def chat(req: ChatRequest):
         "created_goals": result["created_goals"],
         "agent_actions": result.get("agent_actions", [])
     }
+
+
+@app.get("/api/models")
+def get_available_models():
+    """ดึงรายชื่อโมเดล AI ทั้งหมด (Gemini & Groq)"""
+    from ai_engine import AVAILABLE_MODELS
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    return {
+        "models": AVAILABLE_MODELS,
+        "has_groq_key": bool(groq_key),
+        "has_gemini_key": bool(gemini_key)
+    }
+
+
+class ApiKeysRequest(BaseModel):
+    groq_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+
+
+@app.get("/api/settings/keys")
+def get_api_keys():
+    """ดึงสถานะ API keys ของผู้ให้บริการ"""
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    
+    def mask_key(k: str) -> str:
+        if not k:
+            return ""
+        if len(k) <= 8:
+            return "••••••••"
+        return k[:4] + "••••••••" + k[-4:]
+
+    return {
+        "has_groq": bool(groq_key),
+        "groq_masked": mask_key(groq_key),
+        "has_gemini": bool(gemini_key),
+        "gemini_masked": mask_key(gemini_key)
+    }
+
+
+@app.post("/api/settings/keys")
+def save_api_keys(req: ApiKeysRequest):
+    """บันทึก API Keys ลงใน .env และอัปเดตลง os.environ ทันที"""
+    env_file = os.path.join(os.path.dirname(__file__), ".env")
+    lines = []
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            
+    groq_found = False
+    gemini_found = False
+    new_lines = []
+    
+    for line in lines:
+        if line.startswith("GROQ_API_KEY="):
+            groq_found = True
+            if req.groq_api_key is not None:
+                cleaned = req.groq_api_key.strip()
+                new_lines.append(f"GROQ_API_KEY={cleaned}\n")
+                os.environ["GROQ_API_KEY"] = cleaned
+            else:
+                new_lines.append(line)
+        elif line.startswith("GEMINI_API_KEY="):
+            gemini_found = True
+            if req.gemini_api_key is not None and req.gemini_api_key.strip():
+                cleaned = req.gemini_api_key.strip()
+                new_lines.append(f"GEMINI_API_KEY={cleaned}\n")
+                os.environ["GEMINI_API_KEY"] = cleaned
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+            
+    if not groq_found and req.groq_api_key is not None:
+        cleaned = req.groq_api_key.strip()
+        new_lines.append(f"GROQ_API_KEY={cleaned}\n")
+        os.environ["GROQ_API_KEY"] = cleaned
+        
+    if not gemini_found and req.gemini_api_key is not None and req.gemini_api_key.strip():
+        cleaned = req.gemini_api_key.strip()
+        new_lines.append(f"GEMINI_API_KEY={cleaned}\n")
+        os.environ["GEMINI_API_KEY"] = cleaned
+        
+    with open(env_file, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+        
+    return {"status": "success", "message": "บันทึก API Keys เรียบร้อยแล้วครับท่าน"}
+
 
 
 @app.get("/api/agent/telemetry")

@@ -1957,7 +1957,15 @@ body::before {
 }
 
 .hud-modal-box.settings-modal-box {
-    max-width: 680px;
+    max-width: 760px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.hud-modal-box.settings-modal-box .modal-body {
+    max-height: calc(88vh - 130px);
+    overflow-y: auto;
 }
 
 .modal-header {
