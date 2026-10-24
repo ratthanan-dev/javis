@@ -88,21 +88,21 @@ const I18N = {
         modalDirectiveDateLabel: 'วันที่เป้าหมายสำเร็จ',
         modalDirectiveCancel: 'ยกเลิก',
         modalDirectiveConfirm: 'ยืนยันยุทธการ',
-        modalSettingsTag: '[การกำหนดค่าระบบ STARK]',
+        modalSettingsTag: '[STARK SYSTEM CONFIGURATION]',
         modalSettingsTitle: 'การตั้งค่าระบบและโปรโตคอล',
-        modalSettingsLangSec: 'ภาษาการแสดงผลและ AI',
-        modalSettingsLangSelect: 'ภาษาของระบบหน้าจอ (INTERFACE LANGUAGE)',
-        modalSettingsCallsignSelect: 'สรรพนามที่ AI ใช้เรียกท่าน (CALL SIGN)',
-        modalSettingsVoiceSec: 'ระบบเสียงและเสียงพากย์ AI',
-        modalSettingsVoiceModel: 'โมเดลเสียงพากย์สังเคราะห์ (NEURAL VOICE)',
+        modalSettingsLangSec: 'ทั่วไป (ภาษา & สรรพนาม)',
+        modalSettingsLangSelect: 'ภาษาหน้าจอ (Interface Language)',
+        modalSettingsCallsignSelect: 'สรรพนามเรียกขาน (AI Call Sign)',
+        modalSettingsVoiceSec: 'เสียง AI & การพูด',
+        modalSettingsVoiceModel: 'โมเดลเสียงพากย์สังเคราะห์ (Neural Voice)',
         modalSettingsAutoSpeech: 'พูดตอบกลับด้วยเสียง AI อัตโนมัติ',
-        modalSettingsAutoSpeechSub: 'พูดตอบกลับอัตโนมัติด้วยเสียง AI ทุกครั้งที่ได้รับคำสั่ง',
-        modalSettingsThemeSec: 'ธีมภาพและสุนทรียศาสตร์ HUD',
-        modalSettingsColorPalette: 'จานสีธีมหน้าจอ (HUD COLOR PALETTE)',
-        modalSettingsScanlines: 'เส้นตารางฮอโลแกรมแบบละเอียด (GRID OVERLAY)',
-        modalSettingsDataSec: 'การบำรุงรักษาข้อมูลและโปรโตคอล',
-        modalSettingsPurgeOps: 'ล้างภารกิจที่ทำเสร็จแล้ว (PURGE COMPLETED)',
-        modalSettingsPurgeComms: 'ล้างประวัติ COMMS LOG ทั้งหมด',
+        modalSettingsAutoSpeechSub: 'อ่านออกเสียงสังเคราะห์ทุกครั้งที่ J.A.R.V.I.S. ส่งข้อความตอบกลับ',
+        modalSettingsThemeSec: 'ธีมและการแสดงผล',
+        modalSettingsColorPalette: 'จานสีธีมหน้าจอ (Color Palette)',
+        modalSettingsScanlines: 'เส้นสแกนตารางฮอโลแกรม (Hologram Scanlines)',
+        modalSettingsDataSec: 'ข้อมูล & ความปลอดภัย',
+        modalSettingsPurgeOps: 'ล้างภารกิจที่ทำเสร็จแล้ว',
+        modalSettingsPurgeComms: 'ล้างประวัติการสื่อสารทั้งหมด',
         modalSettingsClose: 'ปิด',
         modalSettingsSave: 'บันทึกการตั้งค่า'
     },
@@ -169,22 +169,22 @@ const I18N = {
         modalDirectiveCancel: 'CANCEL',
         modalDirectiveConfirm: 'CONFIRM DIRECTIVE',
         modalSettingsTag: '[STARK SYSTEM CONFIGURATION]',
-        modalSettingsTitle: 'SYSTEM PREFERENCES & PROTOCOLS',
-        modalSettingsLangSec: 'DISPLAY & AI LANGUAGE',
-        modalSettingsLangSelect: 'SYSTEM INTERFACE LANGUAGE',
-        modalSettingsCallsignSelect: 'USER CALL SIGN / HONORIFIC',
-        modalSettingsVoiceSec: 'AUDIO & VOCAL ENGINE',
-        modalSettingsVoiceModel: 'NEURAL VOICE SYNTHESIS',
-        modalSettingsAutoSpeech: 'AUTO-VOCALIZE RESPONSE',
-        modalSettingsAutoSpeechSub: 'Automatically vocalize AI responses upon command receipt',
-        modalSettingsThemeSec: 'HUD VISUAL AESTHETICS',
-        modalSettingsColorPalette: 'HUD COLOR PALETTE',
-        modalSettingsScanlines: 'CRT Scanlines & Hologram Grid Overlay',
-        modalSettingsDataSec: 'DATA MAINTENANCE & PROTOCOLS',
-        modalSettingsPurgeOps: 'PURGE COMPLETED OPS',
-        modalSettingsPurgeComms: 'CLEAR ALL COMMS LOG',
-        modalSettingsClose: 'CLOSE',
-        modalSettingsSave: 'SAVE PREFERENCES'
+        modalSettingsTitle: 'System Settings & Protocols',
+        modalSettingsLangSec: 'General (Language & Callsign)',
+        modalSettingsLangSelect: 'Interface Language',
+        modalSettingsCallsignSelect: 'AI Call Sign / Honorific',
+        modalSettingsVoiceSec: 'Voice & Audio',
+        modalSettingsVoiceModel: 'Neural Voice Synthesis',
+        modalSettingsAutoSpeech: 'Auto-Speech Response',
+        modalSettingsAutoSpeechSub: 'Automatically speak responses upon message delivery',
+        modalSettingsThemeSec: 'Themes & Appearance',
+        modalSettingsColorPalette: 'HUD Color Palette',
+        modalSettingsScanlines: 'Hologram Scanlines & Grid Overlay',
+        modalSettingsDataSec: 'Data & Privacy',
+        modalSettingsPurgeOps: 'Purge Completed Ops',
+        modalSettingsPurgeComms: 'Clear Communication Logs',
+        modalSettingsClose: 'Close',
+        modalSettingsSave: 'Save Settings'
     }
 };
 
@@ -1006,10 +1006,10 @@ function updateUILanguage(lang) {
     if (lblDataSec) lblDataSec.textContent = t.modalSettingsDataSec;
 
     const btnPurgeOps = document.getElementById('btn-purge-ops');
-    if (btnPurgeOps) btnPurgeOps.innerHTML = `<span>🧹</span> ${t.modalSettingsPurgeOps}`;
+    if (btnPurgeOps) btnPurgeOps.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;"><path d="M18 3l3 3-10 10H8v-3L18 3z"></path><path d="M3 21h18"></path></svg><span>${t.modalSettingsPurgeOps}</span>`;
 
     const btnPurgeComms = document.getElementById('btn-purge-comms');
-    if (btnPurgeComms) btnPurgeComms.innerHTML = `<span>🗑️</span> ${t.modalSettingsPurgeComms}`;
+    if (btnPurgeComms) btnPurgeComms.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>${t.modalSettingsPurgeComms}</span>`;
 
     const btnSettingsCancel = document.getElementById('btn-settings-cancel');
     if (btnSettingsCancel) btnSettingsCancel.textContent = t.modalSettingsClose;
@@ -1018,10 +1018,20 @@ function updateUILanguage(lang) {
     if (btnSettingsSave) btnSettingsSave.textContent = t.modalSettingsSave;
 }
 
-function openSettingsModal() {
+function switchSettingsTab(tabName) {
+    document.querySelectorAll('.gemini-settings-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.gemini-settings-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.id === `pane-settings-${tabName}`);
+    });
+}
+
+function openSettingsModal(defaultTab = 'general') {
     playBeep(1100, 0.05);
     applySettingsToDOM();
     loadApiKeysSettings();
+    switchSettingsTab(defaultTab);
     document.getElementById('settings-modal').style.display = 'flex';
 }
 

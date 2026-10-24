@@ -355,6 +355,391 @@
         }
         .form-hint a { color: #8ab4f8; text-decoration: none; }
         .form-hint a:hover { text-decoration: underline; }
+
+        /* ==================== GOOGLE GEMINI SETTINGS MODAL ==================== */
+        .gemini-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: geminiBackdropFade 0.2s ease;
+        }
+        @keyframes geminiBackdropFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .gemini-settings-dialog {
+            width: 820px;
+            max-width: calc(100vw - 32px);
+            height: 590px;
+            max-height: calc(100vh - 40px);
+            background: #1e1f20;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: geminiDialogScale 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes geminiDialogScale {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .gemini-dialog-header {
+            height: 64px;
+            padding: 0 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1e1f20;
+            flex-shrink: 0;
+        }
+        .dialog-title-group .dialog-brand-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            color: #00f0ff;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .dialog-title-group .dialog-title {
+            font-family: 'Outfit', 'Prompt', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #e3e3e3;
+            margin: 0;
+        }
+        .dialog-close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: #c4c7c5;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .dialog-close-btn:hover { background: #282a2c; color: #fff; }
+        .gemini-settings-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: #1e1f20;
+        }
+        .gemini-settings-sidebar {
+            width: 240px;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: #191a1b;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        .gemini-settings-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 20px;
+            background: transparent;
+            border: none;
+            color: #c4c7c5;
+            font-size: 13.5px;
+            font-weight: 500;
+            font-family: 'Outfit', 'Prompt', sans-serif;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.18s ease;
+            width: 100%;
+        }
+        .gemini-settings-tab-btn:hover { background: #282a2c; color: #e3e3e3; }
+        .gemini-settings-tab-btn.active {
+            background: #004a77;
+            color: #c2e7ff;
+            font-weight: 600;
+        }
+        .gemini-settings-tab-btn .tab-svg { stroke: currentColor; flex-shrink: 0; }
+        .gemini-settings-tab-btn .tab-icon { font-size: 16px; flex-shrink: 0; }
+        .gemini-settings-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 28px;
+            background: #1e1f20;
+        }
+        .gemini-settings-pane {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            animation: geminiPaneFade 0.2s ease;
+        }
+        .gemini-settings-pane.active { display: flex; }
+        @keyframes geminiPaneFade {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pane-header {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+        }
+        .pane-title {
+            font-family: 'Outfit', 'Prompt', sans-serif;
+            font-size: 17px;
+            font-weight: 600;
+            color: #e3e3e3;
+            margin: 0 0 4px 0;
+        }
+        .pane-subtitle { font-size: 12.5px; color: #8e918f; margin: 0; }
+        .gemini-setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            gap: 20px;
+        }
+        .gemini-setting-row.block-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .gemini-setting-row .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1 1 auto;
+            min-width: 200px;
+        }
+        .gemini-setting-row .setting-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e3e3e3;
+            line-height: 1.4;
+        }
+        .gemini-setting-row .setting-desc {
+            font-size: 12px;
+            color: #8e918f;
+            line-height: 1.4;
+        }
+        .gemini-setting-row .setting-control {
+            flex: 0 0 auto;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .gemini-select {
+            padding: 9px 14px;
+            background: #282a2c;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            color: #e3e3e3;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            max-width: 330px;
+            transition: all 0.2s ease;
+        }
+        .gemini-select:focus {
+            border-color: #8ab4f8;
+            box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
+        }
+        .gemini-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .gemini-switch input { opacity: 0; width: 0; height: 0; }
+        .gemini-switch .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #3c4043;
+            border-radius: 24px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .gemini-switch .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #8e918f;
+            border-radius: 50%;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .gemini-switch input:checked + .switch-slider { background-color: #004a77; }
+        .gemini-switch input:checked + .switch-slider:before {
+            transform: translateX(20px);
+            background-color: #c2e7ff;
+        }
+        .gemini-theme-picker-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .gemini-theme-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #282a2c;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: #c4c7c5;
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .gemini-theme-pill:hover { background: #333538; color: #fff; }
+        .gemini-theme-pill.active {
+            border-color: #8ab4f8;
+            background: rgba(138, 180, 248, 0.1);
+            color: #fff;
+        }
+        .gemini-theme-pill .color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .gemini-setting-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .gemini-setting-card .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-title-wrap { display: flex; align-items: center; gap: 8px; }
+        .card-title-wrap .card-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #e3e3e3;
+            letter-spacing: 0.5px;
+        }
+        .gemini-setting-card .card-desc { font-size: 12px; color: #8e918f; margin: 0; }
+        .gemini-input-group { position: relative; display: flex; align-items: center; }
+        .gemini-input {
+            width: 100%;
+            padding: 10px 42px 10px 14px;
+            background: #282a2c;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            color: #e3e3e3;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .gemini-input:focus {
+            border-color: #8ab4f8;
+            box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
+        }
+        .gemini-btn-secondary {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #282a2c;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e3e3e3;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .gemini-btn-secondary:hover { background: #333538; color: #fff; }
+        .gemini-btn-danger {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(234, 67, 53, 0.12);
+            border: 1px solid rgba(234, 67, 53, 0.35);
+            color: #f28b82;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .gemini-btn-danger:hover { background: rgba(234, 67, 53, 0.25); color: #fff; }
+        .gemini-dialog-footer {
+            height: 64px;
+            padding: 0 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #1e1f20;
+            flex-shrink: 0;
+        }
+        .gemini-btn-ghost {
+            padding: 9px 20px;
+            border-radius: 20px;
+            background: transparent;
+            border: none;
+            color: #c4c7c5;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .gemini-btn-ghost:hover { background: #282a2c; color: #fff; }
+        .gemini-btn-primary {
+            padding: 9px 24px;
+            border-radius: 20px;
+            background: #8ab4f8;
+            border: none;
+            color: #131314;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .gemini-btn-primary:hover {
+            background: #aecbfa;
+            box-shadow: 0 0 12px rgba(138, 180, 248, 0.4);
+        }
+        @media (max-width: 680px) {
+            .gemini-settings-dialog { height: 90vh; }
+            .gemini-settings-body { flex-direction: column; }
+            .gemini-settings-sidebar {
+                width: 100%;
+                flex-direction: row;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                overflow-x: auto;
+                padding: 10px;
+            }
+            .gemini-settings-tab-btn { white-space: nowrap; }
+            .gemini-setting-row { flex-direction: column; align-items: flex-start; }
+            .gemini-setting-row .setting-control { width: 100%; }
+            .gemini-select { width: 100%; }
+        }
     </style>
 </head>
 <body class="stark-hud chatgpt-theme">
@@ -805,160 +1190,279 @@
         </div>
     </div>
 
-    <!-- ===== MODAL: SYSTEM CONFIGURATION & SETTINGS ===== -->
-    <div class="hud-modal-overlay" id="settings-modal" style="display:none;">
-        <div class="hud-modal-box settings-modal-box">
-            <div class="modal-corner tl"></div>
-            <div class="modal-corner tr"></div>
-            <div class="modal-corner bl"></div>
-            <div class="modal-corner br"></div>
-
-            <div class="modal-header">
-                <div class="modal-title-group">
-                    <span class="modal-tag" id="lbl-settings-tag">[การกำหนดค่าระบบ STARK]</span>
-                    <h3 id="settings-title-text">การตั้งค่าระบบและโปรโตคอล</h3>
+    <!-- ===== MODAL: SYSTEM CONFIGURATION & SETTINGS (GEMINI STYLE) ===== -->
+    <div class="hud-modal-overlay gemini-modal-backdrop" id="settings-modal" style="display:none;" onclick="if(event.target === this) closeSettingsModal()">
+        <div class="gemini-settings-dialog" onclick="event.stopPropagation()">
+            
+            <!-- Dialog Header -->
+            <div class="gemini-dialog-header">
+                <div class="dialog-title-group">
+                    <span class="dialog-brand-tag" id="lbl-settings-tag">[การกำหนดค่าระบบ STARK]</span>
+                    <h2 class="dialog-title" id="settings-title-text">การตั้งค่าระบบและโปรโตคอล</h2>
                 </div>
-                <button class="modal-close-btn" onclick="closeSettingsModal()">&times;</button>
+                <button class="dialog-close-btn" onclick="closeSettingsModal()" title="ปิด">&times;</button>
             </div>
 
-            <div class="modal-body settings-grid">
-                <!-- Section 1: Language & Honorific -->
-                <div class="settings-card">
-                    <div class="settings-card-title">
-                        <span class="sec-icon">🌐</span>
-                        <span id="label-lang-sec">ภาษาการแสดงผลและ AI</span>
-                    </div>
-                    <div class="form-group">
-                        <label for="setting-lang" id="label-lang-select">ภาษาของระบบหน้าจอ (INTERFACE LANGUAGE)</label>
-                        <select id="setting-lang" onchange="onSettingLanguageChange()">
-                            <option value="th">🇹🇭 ภาษาไทย (Thai Default)</option>
-                            <option value="en">🇬🇧 English (Stark Industries Default)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="setting-callsign" id="label-callsign-select">สรรพนามที่ AI ใช้เรียกท่าน (CALL SIGN)</label>
-                        <select id="setting-callsign">
-                            <option value="ท่าน">ท่าน (Sir - Thai Default)</option>
-                            <option value="Sir">Sir (British Formal)</option>
-                            <option value="บอส">บอส (Boss)</option>
-                            <option value="นายท่าน">นายท่าน (Master)</option>
-                            <option value="Tony">Tony (Stark Direct)</option>
-                        </select>
-                    </div>
-                </div>
+            <!-- Dialog Body: Two Column Layout (Left Rail Tabs + Right Content) -->
+            <div class="gemini-settings-body">
+                
+                <!-- Left Nav Tabs -->
+                <aside class="gemini-settings-sidebar">
+                    <button class="gemini-settings-tab-btn active" onclick="switchSettingsTab('general')" data-tab="general">
+                        <svg class="tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span class="tab-text" id="label-lang-sec">ทั่วไป (ภาษา & สรรพนาม)</span>
+                    </button>
+                    <button class="gemini-settings-tab-btn" onclick="switchSettingsTab('models')" data-tab="models">
+                        <svg class="tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        <span class="tab-text">โมเดล & API Keys</span>
+                    </button>
+                    <button class="gemini-settings-tab-btn" onclick="switchSettingsTab('voice')" data-tab="voice">
+                        <svg class="tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        <span class="tab-text" id="label-voice-sec">เสียง AI & การพูด</span>
+                    </button>
+                    <button class="gemini-settings-tab-btn" onclick="switchSettingsTab('theme')" data-tab="theme">
+                        <svg class="tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 2a10 10 0 0 1 0 20v-2a8 8 0 0 0 0-16V2z" fill="currentColor"></path>
+                        </svg>
+                        <span class="tab-text" id="label-theme-sec">ธีมและการแสดงผล</span>
+                    </button>
+                    <button class="gemini-settings-tab-btn" onclick="switchSettingsTab('data')" data-tab="data">
+                        <svg class="tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        <span class="tab-text" id="label-data-sec">ข้อมูล & ความปลอดภัย</span>
+                    </button>
+                </aside>
 
-                <!-- Section 2: Vocal Synthesis & Audio Engine -->
-                <div class="settings-card">
-                    <div class="settings-card-title">
-                        <span class="sec-icon">🎙️</span>
-                        <span id="label-voice-sec">ระบบเสียงและเสียงสังเคราะห์ AI</span>
-                    </div>
-                    <div class="form-group">
-                        <label for="setting-voice-model" id="label-voice-model">โมเดลเสียงพากย์สังเคราะห์ (NEURAL VOICE)</label>
-                        <select id="setting-voice-model">
-                            <option value="th-TH-NiwatNeural">th-TH Niwat Neural (ชาย - สุขุม นุ่มลึก)</option>
-                            <option value="th-TH-PremwadeeNeural">th-TH Premwadee Neural (หญิง - สุภาพ ชัดเจน)</option>
-                            <option value="en-GB-RyanNeural">en-GB Ryan Neural (English Butler - Paul Bettany style)</option>
-                            <option value="en-GB-ThomasNeural">en-GB Thomas Neural (English Formal Male)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label id="label-auto-speech">พูดตอบกลับด้วยเสียง AI อัตโนมัติ</label>
-                        <div class="toggle-checkbox-row">
-                            <input type="checkbox" id="setting-auto-vocalize" checked>
-                            <label for="setting-auto-vocalize" id="label-auto-vocalize-sub">พูดตอบกลับอัตโนมัติด้วยเสียง AI ทุกครั้งที่ได้รับคำสั่ง</label>
+                <!-- Right Content Area -->
+                <main class="gemini-settings-content">
+                    
+                    <!-- TAB 1: GENERAL -->
+                    <div class="gemini-settings-pane active" id="pane-settings-general">
+                        <div class="pane-header">
+                            <h3 class="pane-title">ทั่วไป (General Settings)</h3>
+                            <p class="pane-subtitle">กำหนดภาษาหลักและสรรพนามที่ AI ใช้เรียกขานท่านในระบบ J.A.R.V.I.S.</p>
+                        </div>
+                        
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label" for="setting-lang" id="label-lang-select">ภาษาหน้าจอ (Interface Language)</label>
+                                <span class="setting-desc">ภาษาหลักสำหรับเมนู คำสั่ง และการตอบกลับของระบบ</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="setting-lang" class="gemini-select" onchange="onSettingLanguageChange()">
+                                    <option value="th">ภาษาไทย (Thai Default)</option>
+                                    <option value="en">English (Stark Industries Default)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label" for="setting-callsign" id="label-callsign-select">สรรพนามเรียกขาน (AI Call Sign)</label>
+                                <span class="setting-desc">คำที่ J.A.R.V.I.S. ใช้เรียกท่านในทุกบทสนทนา</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="setting-callsign" class="gemini-select">
+                                    <option value="ท่าน">ท่าน (Sir - เริ่มต้น)</option>
+                                    <option value="Sir">Sir (British Formal)</option>
+                                    <option value="บอส">บอส (Boss)</option>
+                                    <option value="นายท่าน">นายท่าน (Master)</option>
+                                    <option value="Tony">Tony (Stark Direct)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Section 3: Visual Hologram & Themes -->
-                <div class="settings-card">
-                    <div class="settings-card-title">
-                        <span class="sec-icon">🎨</span>
-                        <span id="label-theme-sec">ธีมภาพและสุนทรียศาสตร์ HUD</span>
-                    </div>
-                    <div class="form-group">
-                        <label id="label-color-palette">จานสีธีมหน้าจอ (HUD COLOR PALETTE)</label>
-                        <div class="theme-picker-group">
-                            <button class="theme-btn theme-cyan active" data-theme="cyan" onclick="setHUDTheme('cyan')">
-                                <span class="theme-dot" style="background:#00f0ff;"></span> STARK CYAN
-                            </button>
-                            <button class="theme-btn theme-gold" data-theme="gold" onclick="setHUDTheme('gold')">
-                                <span class="theme-dot" style="background:#ffb700;"></span> MARK III GOLD
-                            </button>
-                            <button class="theme-btn theme-emerald" data-theme="emerald" onclick="setHUDTheme('emerald')">
-                                <span class="theme-dot" style="background:#00ff9d;"></span> STEALTH MATRIX
-                            </button>
-                            <button class="theme-btn theme-purple" data-theme="purple" onclick="setHUDTheme('purple')">
-                                <span class="theme-dot" style="background:#bf40bf;"></span> WAR MACHINE
-                            </button>
+                    <!-- TAB 2: MODELS & API KEYS -->
+                    <div class="gemini-settings-pane" id="pane-settings-models">
+                        <div class="pane-header">
+                            <h3 class="pane-title">โมเดล AI & กุญแจ API (AI Providers & Keys)</h3>
+                            <p class="pane-subtitle">เชื่อมต่อ Groq API เพื่อใช้งานโมเดลความเร็วสูง หรือกำหนดค่า Google Gemini</p>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="toggle-checkbox-row">
-                            <input type="checkbox" id="setting-scanlines" checked onchange="toggleScanlines(this.checked)">
-                            <label for="setting-scanlines" id="label-scanlines-sub">เส้นสแกน CRT และตารางฮอโลแกรม (SCANLINES & GRID)</label>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Section 4: Data & Maintenance Protocols -->
-                <div class="settings-card">
-                    <div class="settings-card-title">
-                        <span class="sec-icon">🛡️</span>
-                        <span id="label-data-sec">การจัดการข้อมูลและโปรโตคอล</span>
-                    </div>
-                    <div class="settings-action-buttons">
-                        <button class="hud-btn" onclick="purgeCompletedOps()" id="btn-purge-ops">
-                            <span>🧹</span> ล้างภารกิจที่ทำเสร็จแล้ว (PURGE COMPLETED)
-                        </button>
-                        <button class="hud-btn danger" onclick="purgeChatComms()" id="btn-purge-comms">
-                            <span>🗑️</span> ล้างประวัติ COMMS LOG ทั้งหมด
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Section 5: AI Models & API Provider Keys (Groq / Gemini) -->
-                <div class="settings-card" style="grid-column: 1 / -1;">
-                    <div class="settings-card-title">
-                        <span class="sec-icon">⚡</span>
-                        <span>ระบบเชื่อมต่อโมเดล AI & กุญแจ API (AI PROVIDERS & KEYS)</span>
-                    </div>
-                    <div class="settings-api-grid">
-                        <!-- Groq API Key -->
-                        <div class="form-group">
-                            <div class="api-label-row">
-                                <label for="setting-groq-key">GROQ API KEY <span class="badge-groq">Groq LPU</span></label>
+                        <!-- Groq API Key Row -->
+                        <div class="gemini-setting-card">
+                            <div class="card-head">
+                                <div class="card-title-wrap">
+                                    <span class="card-title">GROQ API KEY</span>
+                                    <span class="badge-groq">Groq LPU</span>
+                                </div>
                                 <span class="api-status-tag" id="status-tag-groq">กำลังตรวจสอบ...</span>
                             </div>
-                            <div class="api-input-wrap">
-                                <input type="password" id="setting-groq-key" placeholder="gsk_..." autocomplete="off">
-                                <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-groq-key')">👁️</button>
+                            <p class="card-desc">รองรับ Llama 3.3 70B, DeepSeek R1, Llama 3.1 8B Instant, Mixtral 8x7B (ประมวลผลความเร็วแสง)</p>
+                            <div class="gemini-input-group">
+                                <input type="password" id="setting-groq-key" class="gemini-input" placeholder="gsk_..." autocomplete="off">
+                                <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-groq-key')" title="แสดง/ซ่อนคีย์">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
                             </div>
-                            <span class="form-hint">รับ Groq API Key ฟรีได้ที่ <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></span>
+                            <span class="form-hint">รับ Groq API Key ฟรีได้ทันทีที่ <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></span>
                         </div>
 
-                        <!-- Gemini API Key -->
-                        <div class="form-group">
-                            <div class="api-label-row">
-                                <label for="setting-gemini-key">GOOGLE GEMINI API KEY <span class="badge-gemini">Google AI</span></label>
+                        <!-- Gemini API Key Row -->
+                        <div class="gemini-setting-card">
+                            <div class="card-head">
+                                <div class="card-title-wrap">
+                                    <span class="card-title">GOOGLE GEMINI API KEY</span>
+                                    <span class="badge-gemini">Google AI</span>
+                                </div>
                                 <span class="api-status-tag" id="status-tag-gemini">กำลังตรวจสอบ...</span>
                             </div>
-                            <div class="api-input-wrap">
-                                <input type="password" id="setting-gemini-key" placeholder="AIzaSy... (เว้นว่างหากใช้ของเดิม)" autocomplete="off">
-                                <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-gemini-key')">👁️</button>
+                            <p class="card-desc">สำหรับ Gemini 2.5 Flash (Autonomous Web & Sandbox Tools) และ Gemini 1.5 Pro</p>
+                            <div class="gemini-input-group">
+                                <input type="password" id="setting-gemini-key" class="gemini-input" placeholder="AIzaSy... (เว้นว่างหากใช้ของเดิม)" autocomplete="off">
+                                <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-gemini-key')" title="แสดง/ซ่อนคีย์">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
                             </div>
                             <span class="form-hint">รับ Google Gemini API Key ได้ที่ <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a></span>
                         </div>
                     </div>
-                </div>
 
+                    <!-- TAB 3: VOICE & SPEECH -->
+                    <div class="gemini-settings-pane" id="pane-settings-voice">
+                        <div class="pane-header">
+                            <h3 class="pane-title">เสียงสังเคราะห์และการพูด (Voice & Audio)</h3>
+                            <p class="pane-subtitle">ปรับแต่งเสียงพากย์ J.A.R.V.I.S. และการอ่านออกเสียงอัตโนมัติ</p>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label" for="setting-voice-model" id="label-voice-model">โมเดลเสียงพากย์สังเคราะห์ (Neural Voice)</label>
+                                <span class="setting-desc">เลือกน้ำเสียงสังเคราะห์จาก Microsoft Edge Neural TTS</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="setting-voice-model" class="gemini-select">
+                                    <option value="th-TH-NiwatNeural">th-TH Niwat (ชาย - สุขุม นุ่มลึก)</option>
+                                    <option value="th-TH-PremwadeeNeural">th-TH Premwadee (หญิง - สุภาพ ชัดเจน)</option>
+                                    <option value="en-GB-RyanNeural">en-GB Ryan (British Butler - Paul Bettany style)</option>
+                                    <option value="en-GB-ThomasNeural">en-GB Thomas (English Formal Male)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label" for="setting-auto-vocalize" id="label-auto-speech">พูดตอบกลับอัตโนมัติ (Auto-Speech Response)</label>
+                                <span class="setting-desc" id="label-auto-vocalize-sub">อ่านออกเสียงสังเคราะห์ทุกครั้งที่ J.A.R.V.I.S. ส่งข้อความตอบกลับ</span>
+                            </div>
+                            <div class="setting-control">
+                                <label class="gemini-switch">
+                                    <input type="checkbox" id="setting-auto-vocalize" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: THEMES & APPEARANCE -->
+                    <div class="gemini-settings-pane" id="pane-settings-theme">
+                        <div class="pane-header">
+                            <h3 class="pane-title">ธีมและการแสดงผล (Appearance)</h3>
+                            <p class="pane-subtitle">เลือกโทนสี HUD และเอฟเฟกต์ภาพสำหรับหน้าจอของคุณ</p>
+                        </div>
+
+                        <div class="gemini-setting-row block-row">
+                            <div class="setting-info">
+                                <label class="setting-label" id="label-color-palette">จานสีธีมหน้าจอ (Color Palette)</label>
+                                <span class="setting-desc">โทนสีหลักของปุ่ม สถานะ และประกายพลังงานเตาปฏิกรณ์ Arc Reactor</span>
+                            </div>
+                            <div class="gemini-theme-picker-row">
+                                <button class="gemini-theme-pill active theme-btn" data-theme="cyan" onclick="setHUDTheme('cyan')">
+                                    <span class="color-dot" style="background:#00f0ff;"></span>
+                                    <span>STARK CYAN</span>
+                                </button>
+                                <button class="gemini-theme-pill theme-btn" data-theme="gold" onclick="setHUDTheme('gold')">
+                                    <span class="color-dot" style="background:#ffb700;"></span>
+                                    <span>MARK III GOLD</span>
+                                </button>
+                                <button class="gemini-theme-pill theme-btn" data-theme="emerald" onclick="setHUDTheme('emerald')">
+                                    <span class="color-dot" style="background:#00ff9d;"></span>
+                                    <span>STEALTH MATRIX</span>
+                                </button>
+                                <button class="gemini-theme-pill theme-btn" data-theme="purple" onclick="setHUDTheme('purple')">
+                                    <span class="color-dot" style="background:#bf40bf;"></span>
+                                    <span>WAR MACHINE</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label" for="setting-scanlines" id="label-scanlines-sub">เส้นสแกนตารางฮอโลแกรม (Hologram Scanlines & Grid)</label>
+                                <span class="setting-desc">แสดงเอฟเฟกต์เส้นเรืองแสงสไตล์ห้องแล็บ Tony Stark</span>
+                            </div>
+                            <div class="setting-control">
+                                <label class="gemini-switch">
+                                    <input type="checkbox" id="setting-scanlines" checked onchange="toggleScanlines(this.checked)">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: DATA & MAINTENANCE -->
+                    <div class="gemini-settings-pane" id="pane-settings-data">
+                        <div class="pane-header">
+                            <h3 class="pane-title">ข้อมูลและความปลอดภัย (Data & Maintenance)</h3>
+                            <p class="pane-subtitle">จัดการข้อมูลประวัติการสนทนาและล้างภารกิจยุทธการ</p>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label">ล้างภารกิจที่ทำเสร็จแล้ว (Purge Completed Tasks)</label>
+                                <span class="setting-desc">ลบภารกิจยุทธการประจำวันที่ทำเสร็จแล้วออกจากฐานข้อมูลเพื่อความคล่องตัว</span>
+                            </div>
+                            <div class="setting-control">
+                                <button class="gemini-btn-secondary" onclick="purgeCompletedOps()" id="btn-purge-ops">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;"><path d="M18 3l3 3-10 10H8v-3L18 3z"></path><path d="M3 21h18"></path></svg>
+                                    <span>ล้างภารกิจที่ทำเสร็จแล้ว</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="gemini-setting-row">
+                            <div class="setting-info">
+                                <label class="setting-label">ล้างประวัติการสื่อสารทั้งหมด (Clear Communication Logs)</label>
+                                <span class="setting-desc" style="color:#ea4335;">ลบข้อความประวัติการสนทนาทั้งหมดในฐานข้อมูลอย่างถาวร</span>
+                            </div>
+                            <div class="setting-control">
+                                <button class="gemini-btn-danger" onclick="purgeChatComms()" id="btn-purge-comms">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    <span>ล้างประวัติการสื่อสารทั้งหมด</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </main>
             </div>
 
-            <div class="modal-footer">
-                <button class="hud-btn" onclick="closeSettingsModal()" id="btn-settings-cancel">ปิด</button>
-                <button class="hud-btn primary" onclick="saveSettings()" id="btn-settings-save">บันทึกการตั้งค่า</button>
+            <!-- Dialog Footer -->
+            <div class="gemini-dialog-footer">
+                <button class="gemini-btn-ghost" onclick="closeSettingsModal()" id="btn-settings-cancel">ปิด</button>
+                <button class="gemini-btn-primary" onclick="saveSettings()" id="btn-settings-save">บันทึกการตั้งค่า</button>
             </div>
+
         </div>
     </div>
 
@@ -974,7 +1478,7 @@
         <div class="model-picker-body" id="model-picker-list">
             <!-- Populated dynamically via JS -->
         </div>
-        <div class="model-picker-footer" onclick="openSettingsModal(); toggleModelPicker(false);">
+        <div class="model-picker-footer" onclick="openSettingsModal('models'); toggleModelPicker(false);">
             <div class="picker-footer-link">
                 <span>⚙️ ตั้งค่า API Keys (Groq / Gemini)</span>
             </div>
@@ -982,6 +1486,6 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=20261025_groq_models"></script>
+    <script src="/static/js/app.js?v=20261025_gemini_settings"></script>
 </body>
 </html>
