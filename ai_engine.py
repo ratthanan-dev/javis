@@ -119,6 +119,16 @@ def sandbox_list_files(subfolder: str = "") -> str:
     res = sm.list_files(subfolder)
     return json.dumps(res, ensure_ascii=False)
 
+def sandbox_delete_file(relative_path: str) -> str:
+    """Delete a temporary file strictly within sandbox/workspace/. Deletion outside workspace/ is strictly prohibited by non-destructive safety guardrails.
+    
+    Args:
+        relative_path: Path relative to sandbox/ (must be inside workspace/, e.g. 'workspace/draft.txt')
+    """
+    record_agent_action("sandbox_delete_file", relative_path)
+    res = sm.delete_file(relative_path)
+    return json.dumps(res, ensure_ascii=False)
+
 def browser_open_url(url: str, headless: bool = True) -> str:
     """Open a target web page (e.g. Fastwork or external sites) using Playwright Chromium.
     
@@ -179,6 +189,7 @@ def browser_close() -> str:
 JAVIS_AGENT_TOOLS = [
     sandbox_read_file,
     sandbox_write_file,
+    sandbox_delete_file,
     sandbox_list_files,
     browser_open_url,
     browser_analyze_page,

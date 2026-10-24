@@ -225,7 +225,15 @@ def click_element(selector_or_text: str) -> Dict[str, Any]:
                 continue
 
         if not clicked:
-            return {"success": False, "error": f"Element '{selector_or_text}' was not clickable or not found."}
+            # Graceful Failover: capture diagnostic screenshot so user/AI can visually inspect current UI
+            diag_name = f"failover_element_not_found_{int(time.time())}.png"
+            diag_res = take_screenshot(diag_name)
+            return {
+                "success": False,
+                "error": f"Element '{selector_or_text}' was not clickable or not found on page '{_page.title()}'.",
+                "diagnostic_screenshot": diag_res.get("sandbox_relative_path"),
+                "failover_action": "Captured diagnostic screenshot for telemetry analysis."
+            }
 
         save_session()
         return {
@@ -235,7 +243,14 @@ def click_element(selector_or_text: str) -> Dict[str, Any]:
             "title": _page.title()
         }
     except Exception as e:
-        return {"success": False, "error": f"Click failed: {str(e)}"}
+        diag_name = f"failover_click_error_{int(time.time())}.png"
+        diag_res = take_screenshot(diag_name)
+        return {
+            "success": False,
+            "error": f"Click operation interrupted: {str(e)}",
+            "diagnostic_screenshot": diag_res.get("sandbox_relative_path"),
+            "failover_action": "Safe recovery engaged."
+        }
 
 
 def take_screenshot(filename: str = "") -> Dict[str, Any]:

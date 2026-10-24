@@ -118,6 +118,39 @@ def write_file(relative_path: str, content: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+def delete_file(relative_path: str) -> Dict[str, Any]:
+    """
+    Delete a temporary file strictly within sandbox/workspace/.
+    Enforces Non-destructive rule: deletion outside workspace/ is strictly prohibited.
+    """
+    try:
+        path = validate_path(relative_path)
+        real_workspace = os.path.realpath(WORKSPACE_DIR)
+        real_target = os.path.realpath(path)
+
+        # Enforce that real_target must reside strictly within real_workspace
+        common = os.path.commonpath([real_workspace, real_target])
+        if common != real_workspace or real_target == real_workspace:
+            raise SandboxSecurityException(
+                f"SECURITY RESTRICTION: Non-destructive policy enforced. Deletion is strictly prohibited outside 'sandbox/workspace/'. Attempted path: '{relative_path}'"
+            )
+
+        if not os.path.exists(path):
+            return {"success": False, "error": f"File '{relative_path}' not found in workspace."}
+
+        if os.path.isdir(path):
+            raise SandboxSecurityException("Directories cannot be deleted via delete_file.")
+
+        os.remove(path)
+        return {
+            "success": True,
+            "path": os.path.relpath(path, SANDBOX_ROOT),
+            "message": f"Successfully deleted temporary file '{relative_path}' from workspace."
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def list_files(subfolder: str = "") -> Dict[str, Any]:
     """List all files and folders inside the sandbox or a specified subfolder."""
     try:
