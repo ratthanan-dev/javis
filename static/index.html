@@ -7,183 +7,364 @@
     <title>J.A.R.V.I.S. — Tactical Mission Control // STARK OS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=4.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261024_jarvis_reactor">
+    <style>
+        /* Embedded Critical Google Gemini Styles to guarantee instant rendering & eliminate browser cache glitches */
+        :root {
+            --gemini-bg-base: #131314;
+            --gemini-bg-surface: #1e1f20;
+            --gemini-bg-surface-hover: #282a2c;
+            --gemini-bg-active-pill: #333538;
+            --gemini-border-subtle: rgba(255, 255, 255, 0.08);
+            --gemini-text-primary: #e3e3e3;
+            --gemini-text-secondary: #c4c7c5;
+            --gemini-text-muted: #8e918f;
+            --font-body: 'Google Sans', 'Prompt', 'Noto Sans Thai', 'Plus Jakarta Sans', sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body.chatgpt-theme { background-color: #131314 !important; color: #e3e3e3 !important; font-family: var(--font-body) !important; margin: 0; overflow: hidden; }
+        button, input, select, textarea { font-family: inherit; }
+
+        /* Container & Stage */
+        .chatgpt-app-container { display: flex; width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #131314; }
+        .chatgpt-main-wrapper { flex: 1; height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; background: #131314; }
+
+        /* Outside-click Backdrop */
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); z-index: 250; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+        .chatgpt-app-container.sidebar-expanded .sidebar-backdrop { display: block !important; opacity: 1 !important; pointer-events: auto !important; cursor: pointer; }
+
+        /* Dual-Mode Sidebar */
+        .chatgpt-sidebar.gemini-sidebar { height: 100vh; background: #1e1f20; border-right: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; z-index: 260; position: relative; transition: width 0.25s ease; overflow: hidden; }
+
+        /* Collapsed Rail (68px) */
+        .chatgpt-app-container.sidebar-collapsed .chatgpt-sidebar { width: 68px !important; min-width: 68px !important; max-width: 68px !important; margin-left: 0 !important; transform: none !important; background: #131314 !important; }
+        .chatgpt-app-container.sidebar-collapsed .gemini-rail-bar { display: flex !important; }
+        .chatgpt-app-container.sidebar-collapsed .gemini-drawer-panel { display: none !important; }
+
+        .gemini-rail-bar { display: none; flex-direction: column; justify-content: space-between; align-items: center; width: 68px; height: 100vh; padding: 14px 0 16px 0; box-sizing: border-box; }
+        .rail-top-group, .rail-bottom-group { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .rail-btn { width: 44px; height: 44px; border-radius: 50%; background: transparent; border: none; color: #c4c7c5; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
+        .rail-btn:hover { background: #282a2c; color: #fff; }
+        .rail-avatar-pill { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3c4043, #202124); border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; font-weight: 700; font-size: 13px; }
+
+        /* Expanded Drawer (270px) */
+        .chatgpt-app-container.sidebar-expanded .chatgpt-sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; width: 270px !important; min-width: 270px !important; max-width: 270px !important; background: #1e1f20 !important; box-shadow: 6px 0 32px rgba(0, 0, 0, 0.7); z-index: 300 !important; }
+        .chatgpt-app-container.sidebar-expanded .gemini-rail-bar { display: none !important; }
+        .chatgpt-app-container.sidebar-expanded .gemini-drawer-panel { display: flex !important; }
+
+        .gemini-drawer-panel { display: none; flex-direction: column; height: 100vh; width: 270px; overflow: hidden; background: #1e1f20; }
+        .gemini-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 12px 18px; }
+        .gemini-drawer-brand-title { font-family: 'Outfit', 'Prompt', sans-serif; font-size: 19px; font-weight: 700; color: #e3e3e3; margin-left: 10px; letter-spacing: 1.5px; }
+        .gemini-header-actions { display: flex; align-items: center; gap: 4px; }
+        .gemini-icon-btn, .sidebar-collapse-btn { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: #c4c7c5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .gemini-icon-btn:hover, .sidebar-collapse-btn:hover { background: #282a2c; color: #fff; }
+
+        /* J.A.R.V.I.S. Arc Reactor Icon & High-Tech Stark Glow */
+        .jarvis-reactor-icon { display: inline-flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.75)); animation: jarvisReactorPulse 3.5s infinite ease-in-out; flex-shrink: 0; transition: transform 0.2s ease, filter 0.2s ease; }
+        .rail-brand:hover .jarvis-reactor-icon, .stark-brand:hover .jarvis-reactor-icon, .gemini-brand-header:hover .jarvis-reactor-icon { filter: drop-shadow(0 0 10px rgba(0, 240, 255, 1)) drop-shadow(0 0 2px #fff); transform: scale(1.08); }
+        @keyframes jarvisReactorPulse { 0%, 100% { filter: drop-shadow(0 0 5px rgba(0, 240, 255, 0.65)); transform: scale(1); } 50% { filter: drop-shadow(0 0 9px rgba(0, 240, 255, 0.95)) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.8)); transform: scale(1.03); } }
+
+        .btn-new-chat-gemini { width: calc(100% - 32px); margin: 8px 16px 12px 16px; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #282a2c; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; color: #e3e3e3; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+        .btn-new-chat-gemini:hover { background: #333538; color: #fff; }
+
+        .gemini-nav { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
+        .gemini-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 20px; background: transparent; border: none; color: #c4c7c5; font-size: 13.5px; font-weight: 500; cursor: pointer; width: 100%; text-align: left; transition: all 0.18s ease; }
+        .gemini-nav-item:hover { background: #282a2c; color: #e3e3e3; }
+        .gemini-nav-item.active { background: #004a77; color: #c2e7ff; font-weight: 600; }
+
+        .gemini-history-wrap { flex: 1; overflow-y: auto; padding: 12px 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 8px; }
+        .gemini-history-header { font-size: 12px; font-weight: 600; color: #8e918f; padding: 4px 6px 8px 6px; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-directive-pill { padding: 8px 12px; border-radius: 18px; background: transparent; border: none; cursor: pointer; }
+        .sidebar-directive-pill:hover { background: #282a2c; }
+        .sidebar-directive-pill-title { font-size: 13px; color: #e3e3e3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .gemini-drawer-footer { padding: 12px 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; background: #1e1f20; }
+        .gemini-profile-row { display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer; }
+        .gemini-avatar-circle { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3c4043, #202124); border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; }
+        .gemini-profile-info { display: flex; flex-direction: column; overflow: hidden; }
+        .gemini-profile-info .user-callsign { font-size: 13.5px; font-weight: 600; color: #e3e3e3; }
+        .gemini-pro-badge { font-size: 11px; color: #8ab4f8; font-weight: 500; }
+        .gemini-settings-gear-btn { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: #c4c7c5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .gemini-settings-gear-btn:hover { background: #282a2c; color: #fff; }
+
+        /* Topbar */
+        .gemini-topbar { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: transparent; }
+        .gemini-brand-header { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .gemini-topbar-title { font-family: 'Outfit', 'Prompt', sans-serif; font-size: 19px; font-weight: 700; color: #e3e3e3; letter-spacing: 1.5px; }
+        .topbar-toggle-sidebar { background: transparent; border: none; color: #c4c7c5; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .topbar-toggle-sidebar:hover { background: #282a2c; color: #fff; }
+        .gemini-model-selector { padding: 4px 12px; border-radius: 18px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); cursor: pointer; display: flex; align-items: center; }
+        .gemini-download-app-btn { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); color: #e3e3e3; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .gemini-download-app-btn:hover { background: rgba(255, 255, 255, 0.12); }
+        .gemini-top-icon-btn { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: #c4c7c5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .gemini-top-icon-btn:hover { background: #282a2c; color: #fff; }
+
+        /* Welcome Hero with Center Indigo Glow (Screenshot 1) */
+        .gemini-welcome-hero { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52vh; padding: 40px 20px; text-align: center; }
+        .gemini-radial-halo { position: absolute; width: 720px; height: 420px; top: 50%; left: 50%; transform: translate(-50%, -50%); background: radial-gradient(ellipse 650px 380px at 50% 50%, rgba(32, 64, 130, 0.35) 0%, rgba(19, 19, 20, 0) 70%); pointer-events: none; z-index: 0; }
+        .gemini-hero-heading { position: relative; z-index: 1; font-size: 34px; font-weight: 500; color: #e3e3e3; letter-spacing: -0.3px; line-height: 1.35; margin: 0; }
+
+        /* Capsule Input Box (Screenshot 1 & 2) */
+        .gemini-input-footer-container { position: fixed; bottom: 0; left: 68px; right: 0; padding: 12px 24px 20px 24px; background: linear-gradient(180deg, transparent 0%, rgba(19, 19, 20, 0.85) 40%, #131314 100%); backdrop-filter: blur(16px); z-index: 200; display: flex; flex-direction: column; align-items: center; transition: left 0.25s ease; }
+        .chatgpt-app-container.sidebar-expanded .gemini-input-footer-container { left: 0 !important; }
+        .gemini-capsule-input-box { width: 100%; max-width: 800px; height: 56px; background: #1e1f20 !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 28px !important; display: flex; align-items: center; padding: 0 12px 0 14px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45); }
+        .gemini-capsule-input-box:focus-within { border-color: rgba(255, 255, 255, 0.22) !important; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.65); }
+        .gemini-capsule-btn { width: 36px; height: 36px; border-radius: 50%; background: transparent !important; border: none !important; color: #c4c7c5 !important; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        .gemini-capsule-btn:hover { background: #282a2c !important; color: #fff !important; }
+        .gemini-capsule-input-wrapper { flex: 1; margin: 0 10px; }
+        .gemini-capsule-input-wrapper input { width: 100%; background: transparent !important; border: none !important; outline: none !important; color: #e3e3e3 !important; font-size: 15px; }
+        .gemini-capsule-input-wrapper input::placeholder { color: #8e918f; }
+        .gemini-capsule-right-actions { display: flex; align-items: center; gap: 8px; }
+        .gemini-model-dropdown-pill { display: flex; align-items: center; gap: 4px; padding: 5px 12px; background: rgba(255, 255, 255, 0.06); border-radius: 16px; color: #c4c7c5; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .gemini-model-dropdown-pill:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+        .send-btn { width: 36px; height: 36px; border-radius: 50%; background: #282a2c !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #e3e3e3 !important; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .send-btn:hover { background: #333538 !important; color: #fff !important; transform: scale(1.05); }
+
+        /* Segmented Pills (แชท / งาน) */
+        .gemini-segmented-pills-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+        .gemini-segment-pill { padding: 6px 20px; border-radius: 20px; background: transparent !important; border: none !important; color: #c4c7c5 !important; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+        .gemini-segment-pill:hover { background: #282a2c !important; color: #e3e3e3 !important; }
+        .gemini-segment-pill.active { background: #333538 !important; color: #fff !important; }
+        .gemini-disclaimer-text { font-size: 11.5px; color: #8e918f; margin-top: 8px; text-align: center; }
+
+        /* Messages */
+        .comms-entry.assistant .comms-bubble { background: transparent !important; border: none !important; color: #e3e3e3 !important; }
+        .comms-entry.user .comms-bubble { background: #282a2c !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 20px !important; color: #fff !important; }
+    </style>
 </head>
 <body class="stark-hud chatgpt-theme">
     <!-- Ambient Hologram Grid & Radial Energy Field -->
     <div class="hud-scanlines" id="hud-scanlines"></div>
     <div class="hud-vignette"></div>
 
-    <div class="chatgpt-app-container" id="app-container">
+    <div class="chatgpt-app-container sidebar-collapsed" id="app-container">
         
-        <!-- ==================== CHATGPT-STYLE SIDEBAR ==================== -->
-        <aside class="chatgpt-sidebar" id="chatgpt-sidebar">
-            <div class="sidebar-header">
-                <div class="stark-brand" onclick="switchView('chat')" title="J.A.R.V.I.S. Tactical AI">
-                    <div class="arc-mini-icon">
-                        <div class="arc-core-pulse"></div>
-                    </div>
-                    <div class="brand-text">
-                        <span class="brand-title">STARK OS</span>
-                        <span class="brand-sub">J.A.R.V.I.S. <span class="version-tag">v10.4</span></span>
-                    </div>
-                </div>
-                <button class="sidebar-collapse-btn" id="btn-sidebar-toggle" onclick="toggleSidebar()" title="ย่อ / ขยายแถบข้าง (Toggle Sidebar)">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="9" y1="3" x2="9" y2="21"/>
-                    </svg>
-                </button>
-            </div>
+        <!-- Backdrop for auto-closing sidebar when clicking outside (UX / UI requirement) -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="collapseSidebar(event)" title="คลิกเพื่อปิดแถบข้าง"></div>
 
-            <!-- New Mission / Directive Button (Like ChatGPT New Chat) -->
-            <div class="sidebar-new-mission">
-                <button class="btn-new-chat-stark" onclick="handleNewMissionClick()">
-                    <span class="new-chat-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
+        <!-- ==================== GEMINI-STYLE DUAL-MODE SIDEBAR ==================== -->
+        <aside class="chatgpt-sidebar gemini-sidebar" id="chatgpt-sidebar">
+            
+            <!-- 1. SLIM RAIL (Shown when collapsed / width: 68px) -->
+            <div class="gemini-rail-bar" id="gemini-rail-bar">
+                <div class="rail-top-group">
+                    <button class="rail-btn rail-brand" onclick="toggleSidebar(event)" title="J.A.R.V.I.S. // เปิด/ปิด แถบข้าง">
+                        <svg class="jarvis-reactor-icon" width="28" height="28" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="14" stroke="#00f0ff" stroke-width="2" stroke-opacity="0.95" />
+                            <circle cx="16" cy="16" r="9.5" stroke="#00f0ff" stroke-width="2.2" stroke-dasharray="3.4 2.6" stroke-linecap="round" />
+                            <circle cx="16" cy="16" r="5" stroke="#00f0ff" stroke-width="1.5" fill="rgba(0, 240, 255, 0.3)" />
+                            <circle cx="16" cy="16" r="2.5" fill="#ffffff" />
                         </svg>
-                    </span>
-                    <span class="new-chat-text" id="lbl-btn-new-chat">ยุทธการใหม่ / สนทนาใหม่</span>
-                    <span class="new-chat-badge">⚡</span>
-                </button>
+                    </button>
+                    <button class="rail-btn" onclick="handleNewMissionClick()" title="แชทใหม่">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="rail-btn" onclick="quickSend('scan')" title="สแกนและค้นหา">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                    <button class="rail-btn" onclick="switchView('dashboard')" title="ศูนย์บัญชาการภารกิจ (งาน)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </button>
+                    <button class="rail-btn" onclick="switchView('chat')" title="ประวัติการสื่อสาร">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </button>
+                    <button class="rail-btn" onclick="switchView('goals')" title="ผังยุทธการ (Directives)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="rail-bottom-group">
+                    <button class="rail-btn" onclick="openSettingsModal()" title="ตั้งค่าระบบ">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                    <div class="rail-avatar-pill" onclick="openSettingsModal()" title="Ratthanan Chailit (Pro)">
+                        <span class="rail-avatar-initials">RC</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Primary Navigation Menu -->
-            <nav class="sidebar-nav" aria-label="Main Navigation">
-                <div class="sidebar-section-title" id="lbl-sidebar-nav-title">เมนูควบคุมหลัก</div>
-                <button class="hud-nav-btn active" data-view="chat" id="nav-chat">
-                    <span class="nav-icon">💬</span>
-                    <span class="nav-label" id="lbl-nav-chat">ระบบสื่อสาร J.A.R.V.I.S.</span>
-                    <span class="nav-dot" id="chat-dot" style="display:none;"></span>
-                </button>
-                <button class="hud-nav-btn" data-view="dashboard" id="nav-dashboard">
-                    <span class="nav-icon">🎯</span>
-                    <span class="nav-label" id="lbl-nav-dashboard">ศูนย์บัญชาการภารกิจ</span>
-                </button>
-                <button class="hud-nav-btn" data-view="goals" id="nav-goals">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-label" id="lbl-nav-goals">ผังยุทธการหลัก</span>
-                </button>
-            </nav>
+            <!-- 2. EXPANDED DRAWER CONTENT (Shown when expanded / width: 270px) -->
+            <div class="gemini-drawer-panel" id="gemini-drawer-panel">
+                <div class="sidebar-header gemini-drawer-header">
+                    <div class="stark-brand" onclick="switchView('chat')" title="J.A.R.V.I.S. // STARK OS">
+                        <svg class="jarvis-reactor-icon" width="24" height="24" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="14" stroke="#00f0ff" stroke-width="2" stroke-opacity="0.95" />
+                            <circle cx="16" cy="16" r="9.5" stroke="#00f0ff" stroke-width="2.2" stroke-dasharray="3.4 2.6" stroke-linecap="round" />
+                            <circle cx="16" cy="16" r="5" stroke="#00f0ff" stroke-width="1.5" fill="rgba(0, 240, 255, 0.3)" />
+                            <circle cx="16" cy="16" r="2.5" fill="#ffffff" />
+                        </svg>
+                        <span class="gemini-drawer-brand-title" id="lbl-drawer-brand">J.A.R.V.I.S.</span>
+                    </div>
+                    <div class="gemini-header-actions">
+                        <button class="gemini-icon-btn" onclick="quickSend('scan')" title="ค้นหา">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </button>
+                        <button class="sidebar-collapse-btn" id="btn-sidebar-toggle" onclick="collapseSidebar(event)" title="หุบแถบข้าง (Collapse Sidebar)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="9" y1="3" x2="9" y2="21"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Directives & Mission Threads (Like ChatGPT Chat History) -->
-            <div class="sidebar-history-container">
-                <div class="sidebar-section-title">
-                    <span id="lbl-sidebar-directives-title">ยุทธการที่กำลังดำเนินอยู่</span>
-                    <span class="sidebar-count" id="sidebar-directives-count">0</span>
+                <!-- New Chat Button (Gemini Pill) -->
+                <div class="sidebar-new-mission">
+                    <button class="btn-new-chat-gemini" onclick="handleNewMissionClick()">
+                        <span class="new-chat-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                        </span>
+                        <span class="new-chat-text" id="lbl-btn-new-chat">แชทใหม่</span>
+                    </button>
                 </div>
-                <div class="sidebar-history-list" id="sidebar-directives-list">
-                    <!-- Populated dynamically via JS -->
-                    <div class="sidebar-empty-hint">ยังไม่มีรายการยุทธการ</div>
-                </div>
-            </div>
 
-            <!-- Sidebar Telemetry Mini Widget -->
-            <div class="sidebar-telemetry-box">
-                <div class="sidebar-telem-header">
-                    <span class="telem-label" id="lbl-t-efficiency">ประสิทธิภาพเตาปฏิกรณ์:</span>
-                    <span class="telem-val highlight" id="t-efficiency">0%</span>
-                </div>
-                <div class="telem-bar">
-                    <div class="telem-bar-fill" id="t-efficiency-bar" style="width: 0%;"></div>
-                </div>
-                <div class="sidebar-telem-stats">
-                    <div class="telem-stat">
-                        <span class="t-sub" id="lbl-t-streak">ต่อเนื่อง:</span>
-                        <span class="t-num amber" id="t-streak">0 วัน</span>
-                    </div>
-                    <div class="telem-stat">
-                        <span class="t-sub" id="lbl-t-today-ops">ภารกิจวันนี้:</span>
-                        <span class="t-num" id="t-today-ops">0 / 0</span>
-                    </div>
-                </div>
-                <!-- Hidden elements kept for complete JS compatibility -->
-                <span id="t-directives" style="display:none;"></span>
-                <span id="lbl-t-directives" style="display:none;"></span>
-                <span id="lbl-t-neural" style="display:none;"></span>
-                <span id="t-neural" style="display:none;"></span>
-            </div>
+                <!-- Primary Nav Section (Screenshot 2: คลัง, กำหนดเวลาแล้ว, นักเรียนนักศึกษา) -->
+                <nav class="sidebar-nav gemini-nav" aria-label="Main Navigation">
+                    <button class="gemini-nav-item active" data-view="chat" id="nav-chat" onclick="switchView('chat')">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-label" id="lbl-nav-chat">แชท J.A.R.V.I.S.</span>
+                    </button>
+                    <button class="gemini-nav-item" data-view="dashboard" id="nav-dashboard" onclick="switchView('dashboard')">
+                        <span class="nav-icon">📁</span>
+                        <span class="nav-label" id="lbl-nav-dashboard">คลัง / ศูนย์บัญชาการ</span>
+                    </button>
+                    <button class="gemini-nav-item" id="nav-scheduled" onclick="runBriefingProtocol()">
+                        <span class="nav-icon">⏱️</span>
+                        <span class="nav-label">กำหนดเวลาแล้ว / Daily Briefing</span>
+                    </button>
+                    <button class="gemini-nav-item" data-view="goals" id="nav-goals" onclick="switchView('goals')">
+                        <span class="nav-icon">🎓</span>
+                        <span class="nav-label" id="lbl-nav-goals">ผังยุทธการ</span>
+                    </button>
+                </nav>
 
-            <!-- Sidebar Footer: User Profile & Quick Controls -->
-            <div class="sidebar-footer">
-                <div class="user-profile-row" onclick="openSettingsModal()" title="คลิกเพื่อตั้งค่าระบบ">
-                    <div class="user-avatar-badge">
-                        <div class="user-avatar-glow"></div>
-                        <span class="user-avatar-text">TS</span>
+                <!-- Directives & Chat Threads (Screenshot 2: "ทั้งหมด" list) -->
+                <div class="sidebar-history-container gemini-history-wrap">
+                    <div class="sidebar-section-title gemini-history-header">
+                        <span id="lbl-sidebar-directives-title">ทั้งหมด</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.6;">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
                     </div>
-                    <div class="user-profile-meta">
-                        <span class="user-callsign" id="sidebar-user-callsign">Tony Stark</span>
-                        <span class="user-status-text" id="system-status-text">ระบบพร้อมปฏิบัติการ</span>
+                    <div class="sidebar-history-list" id="sidebar-directives-list">
+                        <!-- Populated dynamically via JS -->
+                        <div class="sidebar-empty-hint">ยังไม่มีรายการยุทธการ</div>
                     </div>
                 </div>
-                <div class="sidebar-quick-controls">
-                    <button class="icon-toggle-btn active" id="btn-toggle-sfx" title="สลับเสียงเอฟเฟกต์">
-                        <span class="toggle-icon">🔊</span>
+
+                <!-- Footer: User Profile (Screenshot 2: Ratthanan Chailit, Pro, Gear) -->
+                <div class="sidebar-footer gemini-drawer-footer">
+                    <div class="user-profile-row gemini-profile-row" onclick="openSettingsModal()" title="คลิกเพื่อตั้งค่าระบบ">
+                        <div class="gemini-avatar-circle">
+                            <span>RC</span>
+                        </div>
+                        <div class="gemini-profile-info">
+                            <span class="user-callsign" id="sidebar-user-callsign">Ratthanan Chailit</span>
+                            <span class="user-status-text gemini-pro-badge" id="system-status-text">Pro</span>
+                        </div>
+                    </div>
+                    <button class="gemini-settings-gear-btn" onclick="openSettingsModal()" title="ตั้งค่าระบบ">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
                     </button>
-                    <button class="icon-toggle-btn active" id="btn-toggle-voice" title="สลับเสียงพากย์ AI">
-                        <span class="toggle-icon">🎙️</span>
-                    </button>
-                    <button class="icon-toggle-btn" id="btn-open-settings" onclick="openSettingsModal()" title="ตั้งค่าระบบ">
-                        <span class="toggle-icon">⚙️</span>
-                    </button>
+                    <!-- Hidden audio toggles kept for JS binding -->
+                    <button id="btn-toggle-sfx" style="display:none;"></button>
+                    <button id="btn-toggle-voice" style="display:none;"></button>
+                    <button id="btn-open-settings" style="display:none;"></button>
+                    <span id="t-efficiency" style="display:none;"></span>
+                    <span id="t-efficiency-bar" style="display:none;"></span>
+                    <span id="t-streak" style="display:none;"></span>
+                    <span id="t-today-ops" style="display:none;"></span>
+                    <span id="t-directives" style="display:none;"></span>
+                    <span id="lbl-t-directives" style="display:none;"></span>
+                    <span id="lbl-t-neural" style="display:none;"></span>
+                    <span id="t-neural" style="display:none;"></span>
+                    <span id="sidebar-directives-count" style="display:none;"></span>
                 </div>
             </div>
         </aside>
 
         <!-- ==================== MAIN STAGE ==================== -->
-        <div class="chatgpt-main-wrapper">
+        <div class="chatgpt-main-wrapper" id="main-wrapper" onclick="handleStageClick(event)">
             
-            <!-- ChatGPT Top Bar -->
-            <header class="chatgpt-topbar">
+            <!-- Gemini Top Bar -->
+            <header class="chatgpt-topbar gemini-topbar">
                 <div class="topbar-left">
-                    <button class="topbar-toggle-sidebar" id="btn-topbar-sidebar" onclick="toggleSidebar()" title="เปิด/ปิด แถบข้าง">
+                    <button class="topbar-toggle-sidebar" id="btn-topbar-sidebar" onclick="toggleSidebar(event)" title="เปิด/ปิด แถบข้าง">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                             <line x1="9" y1="3" x2="9" y2="21"/>
                         </svg>
                     </button>
 
-                    <!-- ChatGPT Model Selector Pill -->
-                    <div class="chatgpt-model-selector" onclick="openSettingsModal()" title="คลิกเพื่อดูและปรับแต่งโมเดล">
-                        <div class="model-pill">
-                            <span class="model-core-icon">⚡</span>
-                            <span class="model-name">J.A.R.V.I.S. <span class="model-version">2.5 Flash</span></span>
+                    <div class="gemini-brand-header" onclick="switchView('chat')" title="J.A.R.V.I.S. Tactical AI">
+                        <svg class="jarvis-reactor-icon" width="24" height="24" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="14" stroke="#00f0ff" stroke-width="2" stroke-opacity="0.95" />
+                            <circle cx="16" cy="16" r="9.5" stroke="#00f0ff" stroke-width="2.2" stroke-dasharray="3.4 2.6" stroke-linecap="round" />
+                            <circle cx="16" cy="16" r="5" stroke="#00f0ff" stroke-width="1.5" fill="rgba(0, 240, 255, 0.3)" />
+                            <circle cx="16" cy="16" r="2.5" fill="#ffffff" />
+                        </svg>
+                        <span class="gemini-topbar-title" id="lbl-topbar-brand">J.A.R.V.I.S.</span>
+                    </div>
+
+                    <!-- Model Selector Pill (Screenshot 1: Pro ▾) -->
+                    <div class="chatgpt-model-selector gemini-model-selector" onclick="openSettingsModal()" title="คลิกเพื่อเลือกหรือตั้งค่าโมเดล">
+                        <div class="model-pill gemini-pill-btn">
+                            <span class="model-name">Pro</span>
                             <span class="model-chevron">▾</span>
                         </div>
-                        <div class="hud-badge online" id="system-badge" title="สถานะระบบปกติ">
-                            <span class="badge-dot"></span>
-                            <span class="badge-pulse"></span>
-                        </div>
+                        <div class="hud-badge online" id="system-badge" title="สถานะระบบปกติ" style="display:none;"></div>
                     </div>
                 </div>
 
-                <!-- Protocol Shortcut Pills in Top Bar -->
-                <div class="topbar-protocols">
-                    <button class="topbar-protocol-btn primary" id="btn-protocol-briefing" onclick="runBriefingProtocol()" title="รายงานสรุปยุทธการประจำวัน">
-                        <span class="proto-icon">⚡</span>
-                        <span class="proto-label">Daily Briefing</span>
-                    </button>
-                    <button class="topbar-protocol-btn" onclick="quickSend('scan')" title="สแกนสถานะยุทธการ">
-                        <span class="proto-icon">🔍</span>
-                        <span class="proto-label" id="chip-scan-text">สแกนยุทธการ</span>
-                    </button>
-                    <button class="topbar-protocol-btn" onclick="quickSend('advice')" title="ขอคำแนะนำกลยุทธ์">
-                        <span class="proto-icon">💡</span>
-                        <span class="proto-label" id="chip-advice-text">คำแนะนำยุทธวิธี</span>
-                    </button>
-                    <button class="topbar-protocol-btn" onclick="showAddGoalModal()" title="สร้างยุทธการใหม่">
-                        <span class="proto-icon">🎯</span>
-                        <span class="proto-label" id="chip-new-text">สร้างยุทธการ</span>
-                    </button>
-                </div>
-
                 <div class="topbar-right">
-                    <div class="clock-display" id="hud-clock">
+                    <!-- Screenshot 1 & 2: ดาวน์โหลดแอป pill button -->
+                    <button class="gemini-download-app-btn" onclick="openSettingsModal()" title="ตั้งค่าหรือติดตั้งแอปพลิเคชัน">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>ดาวน์โหลดแอป</span>
+                    </button>
+
+                    <button class="gemini-top-icon-btn" onclick="handleNewMissionClick()" title="แชทใหม่">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                    </button>
+
+                    <div class="clock-display" id="hud-clock" style="display:none;">
                         <span class="time-main" id="time-main">00:00:00</span>
-                        <span class="time-zone">ICT // STARK TIME</span>
                     </div>
                 </div>
             </header>
@@ -191,75 +372,30 @@
             <!-- Main Scrollable Stage Area -->
             <main class="chatgpt-stage-scrollable">
 
-                <!-- ==================== VIEW 1: CHATGPT COMMS (DEFAULT) ==================== -->
+                <!-- ==================== VIEW 1: GEMINI COMMS (DEFAULT) ==================== -->
                 <section class="hud-view active" id="view-chat">
-                    <div class="chatgpt-conversation-container">
+                    <div class="chatgpt-conversation-container gemini-conversation-wrap">
                         
-                        <!-- Header & Channel Name -->
-                        <div class="comms-header-chatgpt">
-                            <div class="comms-channel">
-                                <span class="channel-indicator"></span>
-                                <span class="channel-name" id="lbl-comms-channel">ช่องทางสื่อสารเชิงยุทธการปลอดภัย // STARK-01 DIRECT LINK</span>
-                            </div>
-                            <button class="comms-clear-btn" id="lbl-btn-comms-clear" onclick="clearLocalChat()" title="ล้างประวัติการแสดงผล">
-                                ล้างประวัติ
-                            </button>
+                        <!-- Header & Channel Name (Subtle) -->
+                        <div class="comms-header-chatgpt" style="display:none;">
+                            <span class="channel-name" id="lbl-comms-channel">STARK-01 DIRECT LINK</span>
+                            <button id="lbl-btn-comms-clear" onclick="clearLocalChat()">ล้างประวัติ</button>
                         </div>
 
                         <!-- Chat Messages Container (Populated via JS) -->
-                        <div class="chatgpt-messages-stream" id="chat-messages">
+                        <div class="chatgpt-messages-stream gemini-messages-stream" id="chat-messages">
                             <!-- Populated via loadChatHistory() -->
                         </div>
 
-                        <!-- Welcome Hero & Prompt Cards (Shown at start or when empty) -->
-                        <div class="chatgpt-welcome-hero" id="chat-welcome-hero">
-                            <div class="hero-reactor-center">
-                                <div class="hud-reticle"></div>
-                                <canvas id="arc-reactor-canvas" width="220" height="220"></canvas>
-                                <div class="reactor-readout">
-                                    <span class="reactor-state" id="reactor-state-text">สแตนด์บาย // พร้อมรับคำสั่ง</span>
-                                    <span class="reactor-sub" id="reactor-sub-text">พิมพ์คำสั่งการ หรือกดไมค์เพื่อสั่งการด้วยเสียง</span>
-                                </div>
-                            </div>
+                        <!-- Welcome Hero (Screenshot 1: "เราจะเริ่มจากตรงไหนก่อนดี") -->
+                        <div class="chatgpt-welcome-hero gemini-welcome-hero" id="chat-welcome-hero">
+                            <div class="gemini-radial-halo"></div>
+                            <h1 class="gemini-hero-heading" id="gemini-hero-heading">เราจะเริ่มจากตรงไหนก่อนดี</h1>
                             
-                            <h1 class="hero-title">J.A.R.V.I.S.</h1>
-                            <p class="hero-subtitle">Tactical Strategic Intelligence // ยินดีรับใช้ครับท่าน มีคำสั่งการใดให้กระผมดำเนินการ?</p>
-
-                            <!-- ChatGPT 4 Prompt Starter Cards Grid -->
-                            <div class="chatgpt-starter-grid">
-                                <div class="starter-card" onclick="runBriefingProtocol()">
-                                    <div class="starter-card-top">
-                                        <span class="starter-icon">⚡</span>
-                                        <span class="starter-tag">PROTOCOL</span>
-                                    </div>
-                                    <div class="starter-card-title">Daily Briefing</div>
-                                    <div class="starter-card-desc">รายงานสรุปภาพรวมยุทธการ ภารกิจเร่งด่วนประจำวัน และวิเคราะห์กลยุทธ์</div>
-                                </div>
-                                <div class="starter-card" onclick="showAddGoalModal()">
-                                    <div class="starter-card-top">
-                                        <span class="starter-icon">🎯</span>
-                                        <span class="starter-tag">DIRECTIVE</span>
-                                    </div>
-                                    <div class="starter-card-title">สร้างยุทธการใหม่</div>
-                                    <div class="starter-card-desc">กำหนดเป้าหมายเชิงกลยุทธ์ พร้อมแบ่งขั้นตอน Phase และภารกิจปฏิบัติการ</div>
-                                </div>
-                                <div class="starter-card" onclick="quickSend('advice')">
-                                    <div class="starter-card-top">
-                                        <span class="starter-icon">💡</span>
-                                        <span class="starter-tag">STRATEGY</span>
-                                    </div>
-                                    <div class="starter-card-title">คำแนะนำเชิงยุทธศาสตร์</div>
-                                    <div class="starter-card-desc">ขอคำปรึกษาการจัดลำดับความสำคัญของงาน หรือการแก้ไขอุปสรรค</div>
-                                </div>
-                                <div class="starter-card" onclick="quickSend('scan')">
-                                    <div class="starter-card-top">
-                                        <span class="starter-icon">🔍</span>
-                                        <span class="starter-tag">TELEMETRY</span>
-                                    </div>
-                                    <div class="starter-card-title">สแกนสถานะยุทธการ</div>
-                                    <div class="starter-card-desc">ตรวจสอบเปอร์เซ็นต์ความคืบหน้าของทุกเป้าหมาย และงานคงค้างทั้งหมด</div>
-                                </div>
-                            </div>
+                            <!-- Hidden elements for canvas/JS safety -->
+                            <canvas id="arc-reactor-canvas" width="1" height="1" style="display:none;"></canvas>
+                            <span id="reactor-state-text" style="display:none;"></span>
+                            <span id="reactor-sub-text" style="display:none;"></span>
                         </div>
 
                     </div>
@@ -333,39 +469,59 @@
 
             </main>
 
-            <!-- ==================== CHATGPT FLOATING BOTTOM INPUT DOCK ==================== -->
-            <footer class="chatgpt-input-dock">
-                <div class="chatgpt-input-capsule">
-                    
-                    <!-- Voice Mic Button -->
-                    <button class="mic-btn" id="btn-mic" title="สั่งงานด้วยเสียง (Speech Input)" onclick="toggleVoiceInput()">
-                        <div class="mic-wave"></div>
-                        <svg class="mic-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                            <line x1="12" y1="19" x2="12" y2="23"/>
-                            <line x1="8" y1="23" x2="16" y2="23"/>
+            <!-- ==================== GEMINI FLOATING CAPSULE INPUT FOOTER ==================== -->
+            <footer class="gemini-input-footer-container">
+                <div class="gemini-capsule-input-box" id="gemini-capsule-box">
+                    <!-- Plus attach / new action button -->
+                    <button class="gemini-capsule-btn plus-btn" onclick="showAddGoalModal()" title="สร้างยุทธการใหม่ / แนบข้อมูล">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
                     </button>
 
-                    <!-- Text Input Field -->
-                    <div class="input-text-area-wrapper">
-                        <input type="text" id="hud-command-input" placeholder="สั่งการ J.A.R.V.I.S. หรือพิมพ์คำถาม (เช่น 'วางแผนออกกำลังกาย', '/briefing', 'วิเคราะห์งานวันนี้')..." autocomplete="off">
+                    <!-- Text input -->
+                    <div class="gemini-capsule-input-wrapper">
+                        <input type="text" id="hud-command-input" placeholder="ถาม J.A.R.V.I.S." autocomplete="off">
                     </div>
 
-                    <!-- Transmit / Send Arrow Button (Signature ChatGPT Style) -->
-                    <button class="transmit-btn-chatgpt" id="btn-transmit" onclick="submitCommand()" title="ส่งคำสั่ง (Enter)">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <line x1="12" y1="19" x2="12" y2="5"></line>
-                            <polyline points="5 12 12 5 19 12"></polyline>
-                        </svg>
-                        <span id="lbl-btn-transmit" style="display:none;">ส่งคำสั่ง</span>
-                    </button>
+                    <!-- Right actions: Pro dropdown pill, mic, send -->
+                    <div class="gemini-capsule-right-actions">
+                        <div class="gemini-model-dropdown-pill" onclick="openSettingsModal()" title="เลือกโมเดล (Pro / 2.5 Flash)">
+                            <span>Pro</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
 
+                        <button class="gemini-capsule-btn mic-btn" id="btn-mic" onclick="toggleVoiceInput()" title="สั่งการด้วยเสียง">
+                            <div class="mic-wave"></div>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                        </button>
+
+                        <button class="gemini-capsule-btn send-btn" id="btn-transmit" onclick="submitCommand()" title="ส่งคำสั่ง (Enter)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="12" y1="19" x2="12" y2="5"></line>
+                                <polyline points="5 12 12 5 19 12"></polyline>
+                            </svg>
+                            <span id="lbl-btn-transmit" style="display:none;">ส่งคำสั่ง</span>
+                        </button>
+                    </div>
                 </div>
-                
-                <div class="chatgpt-input-disclaimer">
-                    <span>⚡ J.A.R.V.I.S. Neural System v10.4 // Stark Industries Strategic Intelligence — ข้อมูลได้รับการเข้ารหัสระดับ Stark Security Level 5</span>
+
+                <!-- Segmented Tabs below Input (Screenshot 1: "แชท", "งาน") -->
+                <div class="gemini-segmented-pills-row">
+                    <button class="gemini-segment-pill active" id="seg-pill-chat" onclick="switchView('chat')">แชท</button>
+                    <button class="gemini-segment-pill" id="seg-pill-work" onclick="switchView('dashboard')">งาน</button>
+                </div>
+
+                <div class="gemini-disclaimer-text">
+                    <span>J.A.R.V.I.S. OS v10.4 // STARK INDUSTRIES TACTICAL NEURAL INTERFACE // ระบบปฏิบัติการอัตโนมัติ</span>
                 </div>
             </footer>
 
@@ -547,6 +703,6 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=4.0"></script>
+    <script src="/static/js/app.js?v=20261024_jarvis_reactor"></script>
 </body>
 </html>

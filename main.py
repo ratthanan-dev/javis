@@ -28,6 +28,16 @@ sandbox_output_dir = os.path.join(os.path.dirname(__file__), "sandbox", "output"
 os.makedirs(sandbox_output_dir, exist_ok=True)
 app.mount("/sandbox-output", StaticFiles(directory=sandbox_output_dir), name="sandbox-output")
 
+# Middleware: ป้องกัน Browser Cache ป้องกันปัญหา CSS/JS เก่าค้าง
+@app.middleware("http")
+async def add_cache_control_header(request: Request, call_next):
+    response = await call_next(request)
+    if any(request.url.path.endswith(ext) for ext in [".html", ".css", ".js", ".json"]) or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Global AI instance & start time
 javis_ai = None
 start_timestamp = time.time()
@@ -47,7 +57,10 @@ def startup():
 @app.get("/")
 def serve_index():
     """หน้า HUD กลาง"""
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    return FileResponse(
+        os.path.join(static_dir, "index.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate, max-age=0"}
+    )
 
 
 # ==================== CHAT & PROTOCOLS API ====================

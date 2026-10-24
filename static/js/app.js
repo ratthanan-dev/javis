@@ -17,20 +17,21 @@ const API = {
 const userSettings = {
     language: 'th', // 'th' | 'en'
     callsign: 'ท่าน',
+    userName: 'Ratthanan Chailit',
     voiceModel: 'th-TH-NiwatNeural',
     autoVocalize: true,
     theme: 'cyan', // 'cyan' | 'gold' | 'emerald' | 'purple'
-    scanlines: true,
+    scanlines: false, // Clean Gemini dark aesthetic
 };
 
 // Multilingual Dictionary for HUD
 const I18N = {
     th: {
         brandSub: 'J.A.R.V.I.S. <span class="version-tag">OS v10.4</span>',
-        systemNominal: 'ระบบทั้งหมดพร้อมปฏิบัติการ',
-        navDashboard: 'ศูนย์บัญชาการภารกิจ',
-        navGoals: 'ผังยุทธการหลัก',
-        navChat: 'บันทึกการสื่อสาร',
+        systemNominal: 'Pro',
+        navDashboard: 'คลัง',
+        navGoals: 'นักเรียนนักศึกษา',
+        navChat: 'แชท',
         toggleSfx: 'เอฟเฟกต์',
         toggleVoice: 'เสียง AI',
         toggleConfig: 'ตั้งค่าระบบ',
@@ -49,7 +50,7 @@ const I18N = {
         strategicAdviceBtn: 'คำแนะนำเชิงกลยุทธ์',
         statusScanPrompt: 'รายงานสถานะ Directives ปัจจุบันและความคืบหน้าครับ จาวิส',
         advicePrompt: 'ขอคำแนะนำเชิงยุทธศาสตร์เพื่อเพิ่มประสิทธิภาพการทำงานวันนี้ครับ',
-        terminalPlaceholder: "สั่งการ J.A.R.V.I.S. หรือระบุยุทธการที่ต้องการ (เช่น 'วางแผนฟิตหุ่น', '/briefing')...",
+        terminalPlaceholder: 'ถาม J.A.R.V.I.S.',
         transmitBtn: 'ส่งคำสั่ง',
         directivesPanelTag: '[ยุทธการหลัก]',
         directivesPanelTitle: 'ยุทธการเชิงกลยุทธ์',
@@ -107,10 +108,10 @@ const I18N = {
     },
     en: {
         brandSub: 'J.A.R.V.I.S. <span class="version-tag">OS v10.4</span>',
-        systemNominal: 'ALL SYSTEMS NOMINAL',
-        navDashboard: 'MISSION CONTROL',
-        navGoals: 'DIRECTIVES MATRIX',
-        navChat: 'COMMS LOG',
+        systemNominal: 'Pro',
+        navDashboard: 'Library',
+        navGoals: 'Students',
+        navChat: 'Chat',
         toggleSfx: 'SFX',
         toggleVoice: 'VOICE',
         toggleConfig: 'CONFIG',
@@ -129,7 +130,7 @@ const I18N = {
         strategicAdviceBtn: 'STRATEGIC ADVISORY',
         statusScanPrompt: 'Report current status of all active directives and tactical progress, Jarvis.',
         advicePrompt: 'Provide high-level strategic advisory to maximize operational output today, Jarvis.',
-        terminalPlaceholder: "Transmit directive to J.A.R.V.I.S. (e.g. 'Plan 10K Marathon Training', '/briefing')...",
+        terminalPlaceholder: 'Ask J.A.R.V.I.S.',
         transmitBtn: 'TRANSMIT',
         directivesPanelTag: '[DIRECTIVES]',
         directivesPanelTitle: 'STRATEGIC DIRECTIVES',
@@ -726,13 +727,22 @@ function applySettingsToDOM() {
 
     // 5. Update Sidebar user profile
     const sidebarUser = document.getElementById('sidebar-user-callsign');
-    if (sidebarUser) sidebarUser.textContent = userSettings.callsign || (userSettings.language === 'en' ? 'Sir' : 'ท่าน');
+    if (sidebarUser) sidebarUser.textContent = userSettings.userName || 'Ratthanan Chailit';
+    const statusText = document.getElementById('system-status-text');
+    if (statusText) statusText.textContent = 'Pro';
 
-    // 6. Restore sidebar state
+    // 6. Restore sidebar state (Default: collapsed 68px rail)
     try {
-        const isCollapsed = localStorage.getItem('jarvis_sidebar_collapsed') === 'true';
-        if (isCollapsed) {
-            document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+        const isExpanded = localStorage.getItem('jarvis_sidebar_collapsed') === 'false';
+        const container = document.getElementById('app-container');
+        if (container) {
+            if (isExpanded) {
+                container.classList.remove('sidebar-collapsed');
+                container.classList.add('sidebar-expanded');
+            } else {
+                container.classList.add('sidebar-collapsed');
+                container.classList.remove('sidebar-expanded');
+            }
         }
     } catch (e) {}
 }
@@ -749,6 +759,12 @@ function updateUILanguage(lang) {
 
     const navChat = document.querySelector('#nav-chat .nav-label');
     if (navChat) navChat.textContent = t.navChat;
+
+    // Brand titles (Always J.A.R.V.I.S.)
+    const drawerBrand = document.getElementById('lbl-drawer-brand');
+    if (drawerBrand) drawerBrand.textContent = 'J.A.R.V.I.S.';
+    const topbarBrand = document.getElementById('lbl-topbar-brand');
+    if (topbarBrand) topbarBrand.textContent = 'J.A.R.V.I.S.';
 
     // 2. System Status Badge
     const statusText = document.getElementById('system-status-text');
@@ -1186,13 +1202,24 @@ function setupNavigation() {
 function switchView(viewName) {
     currentView = viewName;
 
-    document.querySelectorAll('.hud-nav-btn').forEach(btn => {
+    // Auto-collapse sidebar on view change if expanded
+    if (typeof collapseSidebar === 'function') {
+        collapseSidebar();
+    }
+
+    document.querySelectorAll('.hud-nav-btn, .gemini-nav-item').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === viewName);
     });
 
     document.querySelectorAll('.hud-view').forEach(view => {
         view.classList.toggle('active', view.id === `view-${viewName}`);
     });
+
+    // Synchronize Gemini segmented tabs (แชท / งาน)
+    const segChat = document.getElementById('seg-pill-chat');
+    const segWork = document.getElementById('seg-pill-work');
+    if (segChat) segChat.classList.toggle('active', viewName === 'chat');
+    if (segWork) segWork.classList.toggle('active', viewName === 'dashboard' || viewName === 'goals');
 
     if (viewName === 'dashboard') loadDashboard();
     if (viewName === 'goals') loadGoals();
@@ -1685,17 +1712,70 @@ function clearLocalChat() {
     updateWelcomeHeroVisibility();
 }
 
-// ==================== CHATGPT SIDEBAR & UI HELPERS ====================
+// ==================== GEMINI SIDEBAR & AUTO-COLLAPSE HELPERS ====================
 
-function toggleSidebar() {
+function isSidebarExpanded() {
+    const container = document.getElementById('app-container');
+    return container && container.classList.contains('sidebar-expanded');
+}
+
+function collapseSidebar(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
     const container = document.getElementById('app-container');
     if (!container) return;
-    container.classList.toggle('sidebar-collapsed');
-    playBeep(1100, 0.03);
+    container.classList.remove('sidebar-expanded');
+    container.classList.add('sidebar-collapsed');
+    playBeep(950, 0.02);
     try {
-        localStorage.setItem('jarvis_sidebar_collapsed', container.classList.contains('sidebar-collapsed'));
-    } catch (e) {}
+        localStorage.setItem('jarvis_sidebar_collapsed', 'true');
+    } catch (err) {}
 }
+
+function expandSidebar(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const container = document.getElementById('app-container');
+    if (!container) return;
+    container.classList.remove('sidebar-collapsed');
+    container.classList.add('sidebar-expanded');
+    playBeep(1200, 0.03);
+    try {
+        localStorage.setItem('jarvis_sidebar_collapsed', 'false');
+    } catch (err) {}
+}
+
+function toggleSidebar(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (isSidebarExpanded()) {
+        collapseSidebar(e);
+    } else {
+        expandSidebar(e);
+    }
+}
+
+function handleStageClick(event) {
+    // User requirement: When clicking anywhere on the stage while drawer is open, auto-collapse!
+    if (isSidebarExpanded()) {
+        collapseSidebar(event);
+    }
+}
+
+// Global outside click listener: automatically collapse sidebar whenever user clicks outside
+document.addEventListener('click', (event) => {
+    if (!isSidebarExpanded()) return;
+    const target = event.target;
+
+    // Check if clicked element or any ancestor is inside the sidebar or toggle buttons
+    if (target.closest && (
+        target.closest('#chatgpt-sidebar') ||
+        target.closest('#btn-topbar-sidebar') ||
+        target.closest('.rail-brand') ||
+        target.closest('#btn-sidebar-toggle')
+    )) {
+        return;
+    }
+
+    collapseSidebar(event);
+});
 
 function handleNewMissionClick() {
     playBeep(1300, 0.05);
