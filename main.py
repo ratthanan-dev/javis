@@ -104,88 +104,67 @@ def chat(req: ChatRequest):
 def get_available_models():
     """ดึงรายชื่อโมเดล AI ทั้งหมด (Gemini & Groq)"""
     from ai_engine import AVAILABLE_MODELS
-    groq_key = os.getenv("GROQ_API_KEY", "").strip()
-    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    from key_manager import key_manager
     return {
         "models": AVAILABLE_MODELS,
-        "has_groq_key": bool(groq_key),
-        "has_gemini_key": bool(gemini_key)
+        "has_groq_key": key_manager.get_status_summary()["has_groq"],
+        "has_gemini_key": key_manager.get_status_summary()["has_gemini"]
     }
 
 
 class ApiKeysRequest(BaseModel):
     groq_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
+    prune_invalid: Optional[bool] = False
 
 
 @app.get("/api/settings/keys")
 def get_api_keys():
-    """ดึงสถานะ API keys ของผู้ให้บริการ"""
-    groq_key = os.getenv("GROQ_API_KEY", "").strip()
-    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-    
-    def mask_key(k: str) -> str:
-        if not k:
-            return ""
-        if len(k) <= 8:
-            return "••••••••"
-        return k[:4] + "••••••••" + k[-4:]
-
-    return {
-        "has_groq": bool(groq_key),
-        "groq_masked": mask_key(groq_key),
-        "has_gemini": bool(gemini_key),
-        "gemini_masked": mask_key(gemini_key)
-    }
+    """ดึงสถานะ API keys ของผู้ให้บริการ (รองรับหลายคีย์, หมุนเวียน, และแสดงสถานะ สีเขียว/เหลือง/แดง)"""
+    from key_manager import key_manager
+    return key_manager.get_status_summary()
 
 
 @app.post("/api/settings/keys")
 def save_api_keys(req: ApiKeysRequest):
-    """บันทึก API Keys ลงใน .env และอัปเดตลง os.environ ทันที"""
-    env_file = os.path.join(os.path.dirname(__file__), ".env")
-    lines = []
-    if os.path.exists(env_file):
-        with open(env_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            
-    groq_found = False
-    gemini_found = False
-    new_lines = []
+    """บันทึก API Keys หลายคีย์ (คั่นด้วยคอมม่า) ลงใน .env และหมุนเวียนคีย์ทันที"""
+    from key_manager import key_manager, parse_keys_string
     
-    for line in lines:
-        if line.startswith("GROQ_API_KEY="):
-            groq_found = True
-            if req.groq_api_key is not None:
-                cleaned = req.groq_api_key.strip()
-                new_lines.append(f"GROQ_API_KEY={cleaned}\n")
-                os.environ["GROQ_API_KEY"] = cleaned
-            else:
-                new_lines.append(line)
-        elif line.startswith("GEMINI_API_KEY="):
-            gemini_found = True
-            if req.gemini_api_key is not None and req.gemini_api_key.strip():
-                cleaned = req.gemini_api_key.strip()
-                new_lines.append(f"GEMINI_API_KEY={cleaned}\n")
-                os.environ["GEMINI_API_KEY"] = cleaned
-            else:
-                new_lines.append(line)
-        else:
-            new_lines.append(line)
-            
-    if not groq_found and req.groq_api_key is not None:
-        cleaned = req.groq_api_key.strip()
-        new_lines.append(f"GROQ_API_KEY={cleaned}\n")
-        os.environ["GROQ_API_KEY"] = cleaned
-        
-    if not gemini_found and req.gemini_api_key is not None and req.gemini_api_key.strip():
-        cleaned = req.gemini_api_key.strip()
-        new_lines.append(f"GEMINI_API_KEY={cleaned}\n")
-        os.environ["GEMINI_API_KEY"] = cleaned
-        
-    with open(env_file, "w", encoding="utf-8") as f:
-        f.writelines(new_lines)
-        
-    return {"status": "success", "message": "บันทึก API Keys เรียบร้อยแล้วครับท่าน"}
+    groq_keys = parse_keys_string(req.groq_api_key) if req.groq_api_key is not None else None
+    gemini_keys = parse_keys_string(req.gemini_api_key) if req.gemini_api_key is not None else None
+
+    if req.prune_invalid:
+        result = key_manager.validate_and_prune_keys(req.groq_api_key, req.gemini_api_key, prune_invalid=True)
+        return {
+            "status": "success",
+            "message": result["message"],
+            "summary": key_manager.get_status_summary(),
+            "details": result
+        }
+
+    key_manager.save_to_env(groq_keys=groq_keys, gemini_keys=gemini_keys)
+    return {
+        "status": "success",
+        "message": "บันทึกและเชื่อมต่อ API Keys เรียบร้อยแล้วครับท่าน",
+        "summary": key_manager.get_status_summary()
+    }
+
+
+@app.post("/api/settings/keys/validate")
+def validate_and_prune_api_keys(req: ApiKeysRequest):
+    """ตรวจสอบสถานะของคีย์ทั้งหมด (เขียว/เหลือง/แดง) และตัดคีย์ที่ใช้งานไม่ได้ทิ้ง"""
+    from key_manager import key_manager
+    result = key_manager.validate_and_prune_keys(
+        raw_groq=req.groq_api_key,
+        raw_gemini=req.gemini_api_key,
+        prune_invalid=True
+    )
+    return {
+        "status": "success",
+        "message": result["message"],
+        "details": result,
+        "summary": key_manager.get_status_summary()
+    }
 
 
 

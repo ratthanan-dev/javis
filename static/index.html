@@ -506,6 +506,7 @@
         }
         .pane-subtitle { font-size: 12.5px; color: #8e918f; margin: 0; }
         .gemini-setting-row {
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -514,17 +515,22 @@
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 16px;
             gap: 20px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
         }
         .gemini-setting-row.block-row {
             flex-direction: column;
             align-items: flex-start;
+            gap: 12px;
         }
         .gemini-setting-row .setting-info {
             display: flex;
             flex-direction: column;
             gap: 4px;
             flex: 1 1 auto;
-            min-width: 200px;
+            min-width: 0;
+            width: 100%;
         }
         .gemini-setting-row .setting-label {
             font-size: 14px;
@@ -538,7 +544,9 @@
             line-height: 1.4;
         }
         .gemini-setting-row .setting-control {
-            flex: 0 0 auto;
+            flex: 0 1 auto;
+            min-width: 0;
+            max-width: 55%;
             display: flex;
             justify-content: flex-end;
             align-items: center;
@@ -661,6 +669,103 @@
         .gemini-input:focus {
             border-color: #8ab4f8;
             box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
+        }
+        .gemini-textarea {
+            resize: vertical;
+            min-height: 52px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 11.5px;
+            line-height: 1.45;
+        }
+        .gemini-keys-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .key-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: #282a2c;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'JetBrains Mono', monospace;
+            color: #e3e3e3;
+        }
+        .key-chip .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .key-chip.status-active .status-dot {
+            background: #34a853;
+            box-shadow: 0 0 6px rgba(52, 168, 83, 0.8);
+        }
+        .key-chip.status-rate_limited .status-dot {
+            background: #fbbc04;
+            box-shadow: 0 0 6px rgba(251, 188, 4, 0.8);
+        }
+        .key-chip.status-invalid .status-dot {
+            background: #ea4335;
+            box-shadow: 0 0 6px rgba(234, 67, 53, 0.8);
+        }
+        .key-chip .key-usage-count {
+            color: #8e918f;
+            font-size: 10px;
+            padding-left: 2px;
+        }
+        .gemini-keys-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 4px;
+            flex-wrap: wrap;
+        }
+        .key-status-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 11px;
+            color: #8e918f;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-green { background: #34a853; box-shadow: 0 0 5px rgba(52, 168, 83, 0.8); }
+        .dot-yellow { background: #fbbc04; box-shadow: 0 0 5px rgba(251, 188, 4, 0.8); }
+        .dot-red { background: #ea4335; box-shadow: 0 0 5px rgba(234, 67, 53, 0.8); }
+        .validation-feedback-box {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            line-height: 1.4;
+            background: rgba(138, 180, 248, 0.08);
+            border: 1px solid rgba(138, 180, 248, 0.25);
+            color: #c2e7ff;
+            animation: geminiPaneFade 0.2s ease;
+        }
+        .setting-control-full {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 8px;
+        }
+        .gemini-select-full {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box;
         }
         .gemini-btn-secondary {
             padding: 8px 16px;
@@ -1289,22 +1394,22 @@
                     <!-- TAB 2: MODELS & API KEYS -->
                     <div class="gemini-settings-pane" id="pane-settings-models">
                         <div class="pane-header">
-                            <h3 class="pane-title">โมเดล AI & กุญแจ API (AI Providers & Keys)</h3>
-                            <p class="pane-subtitle">เชื่อมต่อ Groq API เพื่อใช้งานโมเดลความเร็วสูง หรือกำหนดค่า Google Gemini</p>
+                            <h3 class="pane-title">โมเดล AI & กุญแจ API (AI Providers & Multi-Key Pool)</h3>
+                            <p class="pane-subtitle">รองรับการใส่หลายคีย์ (คั่นด้วยคอมม่า ,) ระบบจะสลับหมุนเวียนคีย์และถัวเฉลี่ยคำขออัตโนมัติ</p>
                         </div>
 
                         <!-- Groq API Key Row -->
                         <div class="gemini-setting-card">
                             <div class="card-head">
                                 <div class="card-title-wrap">
-                                    <span class="card-title">GROQ API KEY</span>
+                                    <span class="card-title">GROQ API KEYS</span>
                                     <span class="badge-groq">Groq LPU</span>
                                 </div>
                                 <span class="api-status-tag" id="status-tag-groq">กำลังตรวจสอบ...</span>
                             </div>
-                            <p class="card-desc">รองรับ Llama 3.3 70B, DeepSeek R1, Llama 3.1 8B Instant, Mixtral 8x7B (ประมวลผลความเร็วแสง)</p>
+                            <p class="card-desc">รองรับ Llama 3.3 70B, DeepSeek R1, Llama 3.1 8B, Mixtral 8x7B (ใส่ได้หลายคีย์ เช่น key1, key2, key3)</p>
                             <div class="gemini-input-group">
-                                <input type="password" id="setting-groq-key" class="gemini-input" placeholder="gsk_..." autocomplete="off">
+                                <textarea id="setting-groq-key" class="gemini-input gemini-textarea" rows="2" placeholder="gsk_key1, gsk_key2 (ใส่ทีเดียวหลายคีย์ คั่นด้วยคอมม่า)" autocomplete="off"></textarea>
                                 <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-groq-key')" title="แสดง/ซ่อนคีย์">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1312,21 +1417,22 @@
                                     </svg>
                                 </button>
                             </div>
-                            <span class="form-hint">รับ Groq API Key ฟรีได้ทันทีที่ <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></span>
+                            <div class="gemini-keys-pool" id="groq-keys-pool"></div>
+                            <span class="form-hint">รับ Groq API Key ฟรีได้ที่ <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></span>
                         </div>
 
                         <!-- Gemini API Key Row -->
                         <div class="gemini-setting-card">
                             <div class="card-head">
                                 <div class="card-title-wrap">
-                                    <span class="card-title">GOOGLE GEMINI API KEY</span>
+                                    <span class="card-title">GOOGLE GEMINI API KEYS</span>
                                     <span class="badge-gemini">Google AI</span>
                                 </div>
                                 <span class="api-status-tag" id="status-tag-gemini">กำลังตรวจสอบ...</span>
                             </div>
-                            <p class="card-desc">สำหรับ Gemini 2.5 Flash (Autonomous Web & Sandbox Tools) และ Gemini 1.5 Pro</p>
+                            <p class="card-desc">สำหรับ Gemini 2.5 Flash และ Gemini 1.5 Pro (ใส่ได้หลายคีย์ เช่น key1, key2)</p>
                             <div class="gemini-input-group">
-                                <input type="password" id="setting-gemini-key" class="gemini-input" placeholder="AIzaSy... (เว้นว่างหากใช้ของเดิม)" autocomplete="off">
+                                <textarea id="setting-gemini-key" class="gemini-input gemini-textarea" rows="2" placeholder="AIzaSy_key1, AIzaSy_key2 (ใส่ทีเดียวหลายคีย์ คั่นด้วยคอมม่า)" autocomplete="off"></textarea>
                                 <button type="button" class="btn-toggle-eye" onclick="toggleKeyVisibility('setting-gemini-key')" title="แสดง/ซ่อนคีย์">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1334,8 +1440,26 @@
                                     </svg>
                                 </button>
                             </div>
+                            <div class="gemini-keys-pool" id="gemini-keys-pool"></div>
                             <span class="form-hint">รับ Google Gemini API Key ได้ที่ <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a></span>
                         </div>
+
+                        <!-- Key Actions & Legend -->
+                        <div class="gemini-keys-toolbar">
+                            <button type="button" class="gemini-btn-secondary" onclick="validateAndPruneKeys(true)" id="btn-validate-keys">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <span>ตรวจสอบและตัดคีย์เสียทิ้ง (Validate & Prune)</span>
+                            </button>
+                            <div class="key-status-legend">
+                                <span class="legend-item"><span class="legend-dot dot-green"></span> ใช้งานได้</span>
+                                <span class="legend-item"><span class="legend-dot dot-yellow"></span> ติด Rate Limit</span>
+                                <span class="legend-item"><span class="legend-dot dot-red"></span> คีย์เสีย</span>
+                            </div>
+                        </div>
+                        <div class="validation-feedback-box" id="validation-feedback-box" style="display:none;"></div>
                     </div>
 
                     <!-- TAB 3: VOICE & SPEECH -->
@@ -1345,13 +1469,14 @@
                             <p class="pane-subtitle">ปรับแต่งเสียงพากย์ J.A.R.V.I.S. และการอ่านออกเสียงอัตโนมัติ</p>
                         </div>
 
-                        <div class="gemini-setting-row">
+                        <!-- Stacked voice model row: Label on top, dropdown cleanly below with 100% width -->
+                        <div class="gemini-setting-row block-row">
                             <div class="setting-info">
                                 <label class="setting-label" for="setting-voice-model" id="label-voice-model">โมเดลเสียงพากย์สังเคราะห์ (Neural Voice)</label>
                                 <span class="setting-desc">เลือกน้ำเสียงสังเคราะห์จาก Microsoft Edge Neural TTS</span>
                             </div>
-                            <div class="setting-control">
-                                <select id="setting-voice-model" class="gemini-select">
+                            <div class="setting-control-full">
+                                <select id="setting-voice-model" class="gemini-select gemini-select-full">
                                     <option value="th-TH-NiwatNeural">th-TH Niwat (ชาย - สุขุม นุ่มลึก)</option>
                                     <option value="th-TH-PremwadeeNeural">th-TH Premwadee (หญิง - สุภาพ ชัดเจน)</option>
                                     <option value="en-GB-RyanNeural">en-GB Ryan (British Butler - Paul Bettany style)</option>

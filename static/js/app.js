@@ -1063,6 +1063,10 @@ function saveSettings() {
                 gemini_api_key: geminiKeyInput || null
             })
         }).then(() => {
+            const inputG = document.getElementById('setting-groq-key');
+            if (inputG) inputG.value = '';
+            const inputGem = document.getElementById('setting-gemini-key');
+            if (inputGem) inputGem.value = '';
             loadApiKeysSettings();
             loadAvailableModels();
         });
@@ -2102,11 +2106,19 @@ async function loadApiKeysSettings() {
         const data = await res.json();
         hasGroqKeyConfigured = data.has_groq;
         
+        // 1. Groq Keys Rendering
         const tagGroq = document.getElementById('status-tag-groq');
         if (tagGroq) {
-            if (data.has_groq) {
-                tagGroq.textContent = 'เชื่อมต่อแล้ว ✓';
-                tagGroq.className = 'api-status-tag connected';
+            if (data.has_groq && data.groq_count > 0) {
+                const activeCount = (data.groq_keys || []).filter(k => k.status === 'active').length;
+                const rateLimitedCount = (data.groq_keys || []).filter(k => k.status === 'rate_limited').length;
+                if (rateLimitedCount > 0 && activeCount === 0) {
+                    tagGroq.textContent = `ติด Rate Limit (${rateLimitedCount} คีย์)`;
+                    tagGroq.className = 'api-status-tag status-warning';
+                } else {
+                    tagGroq.textContent = `พร้อมใช้งาน ${activeCount}/${data.groq_count} คีย์ ✓`;
+                    tagGroq.className = 'api-status-tag connected';
+                }
             } else {
                 tagGroq.textContent = 'ยังไม่ได้เชื่อมต่อ';
                 tagGroq.className = 'api-status-tag';
@@ -2115,14 +2127,42 @@ async function loadApiKeysSettings() {
         
         const inputGroq = document.getElementById('setting-groq-key');
         if (inputGroq) {
-            inputGroq.placeholder = data.groq_masked ? `${data.groq_masked} (เชื่อมต่อแล้ว)` : 'gsk_...';
+            inputGroq.placeholder = (data.groq_count > 0) 
+                ? `${data.groq_count} คีย์ใน Pool (ใส่คีย์ใหม่คั่นด้วยคอมม่าเพื่อเพิ่มหรือแทนที่)`
+                : 'gsk_key1, gsk_key2 (ใส่ทีเดียวหลายคีย์ คั่นด้วยคอมม่า)';
+        }
+
+        const groqPool = document.getElementById('groq-keys-pool');
+        if (groqPool) {
+            groqPool.innerHTML = '';
+            if (data.groq_keys && data.groq_keys.length > 0) {
+                data.groq_keys.forEach(k => {
+                    const chip = document.createElement('div');
+                    chip.className = `key-chip status-${k.status}`;
+                    chip.title = `${k.message} | ใช้งานแล้ว ${k.usage} ครั้ง`;
+                    chip.innerHTML = `
+                        <span class="status-dot"></span>
+                        <span>#${k.index} ${k.masked}</span>
+                        <span class="key-usage-count">${k.usage > 0 ? `(ใช้ ${k.usage})` : ''}</span>
+                    `;
+                    groqPool.appendChild(chip);
+                });
+            }
         }
         
+        // 2. Gemini Keys Rendering
         const tagGemini = document.getElementById('status-tag-gemini');
         if (tagGemini) {
-            if (data.has_gemini) {
-                tagGemini.textContent = 'เชื่อมต่อแล้ว ✓';
-                tagGemini.className = 'api-status-tag connected';
+            if (data.has_gemini && data.gemini_count > 0) {
+                const activeCount = (data.gemini_keys || []).filter(k => k.status === 'active').length;
+                const rateLimitedCount = (data.gemini_keys || []).filter(k => k.status === 'rate_limited').length;
+                if (rateLimitedCount > 0 && activeCount === 0) {
+                    tagGemini.textContent = `ติด Rate Limit (${rateLimitedCount} คีย์)`;
+                    tagGemini.className = 'api-status-tag status-warning';
+                } else {
+                    tagGemini.textContent = `พร้อมใช้งาน ${activeCount}/${data.gemini_count} คีย์ ✓`;
+                    tagGemini.className = 'api-status-tag connected';
+                }
             } else {
                 tagGemini.textContent = 'ยังไม่ได้เชื่อมต่อ';
                 tagGemini.className = 'api-status-tag';
@@ -2131,7 +2171,27 @@ async function loadApiKeysSettings() {
         
         const inputGemini = document.getElementById('setting-gemini-key');
         if (inputGemini) {
-            inputGemini.placeholder = data.gemini_masked ? `${data.gemini_masked} (เชื่อมต่อแล้ว)` : 'AIzaSy...';
+            inputGemini.placeholder = (data.gemini_count > 0)
+                ? `${data.gemini_count} คีย์ใน Pool (ใส่คีย์ใหม่คั่นด้วยคอมม่าเพื่อเพิ่มหรือแทนที่)`
+                : 'AIzaSy_key1, AIzaSy_key2 (ใส่ทีเดียวหลายคีย์ คั่นด้วยคอมม่า)';
+        }
+
+        const geminiPool = document.getElementById('gemini-keys-pool');
+        if (geminiPool) {
+            geminiPool.innerHTML = '';
+            if (data.gemini_keys && data.gemini_keys.length > 0) {
+                data.gemini_keys.forEach(k => {
+                    const chip = document.createElement('div');
+                    chip.className = `key-chip status-${k.status}`;
+                    chip.title = `${k.message} | ใช้งานแล้ว ${k.usage} ครั้ง`;
+                    chip.innerHTML = `
+                        <span class="status-dot"></span>
+                        <span>#${k.index} ${k.masked}</span>
+                        <span class="key-usage-count">${k.usage > 0 ? `(ใช้ ${k.usage})` : ''}</span>
+                    `;
+                    geminiPool.appendChild(chip);
+                });
+            }
         }
     } catch (e) {
         console.error('Error fetching API keys:', e);
@@ -2139,8 +2199,82 @@ async function loadApiKeysSettings() {
 }
 
 function toggleKeyVisibility(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    input.type = input.type === 'password' ? 'text' : 'password';
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    if (el.tagName.toLowerCase() === 'textarea') {
+        const current = el.style.webkitTextSecurity || 'disc';
+        el.style.webkitTextSecurity = (current === 'disc') ? 'none' : 'disc';
+    } else {
+        el.type = el.type === 'password' ? 'text' : 'password';
+    }
+}
+
+async function validateAndPruneKeys(prune = true) {
+    const btn = document.getElementById('btn-validate-keys');
+    const feedbackBox = document.getElementById('validation-feedback-box');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⟳</span> กำลังตรวจสอบคีย์และวัด Latency...`;
+    }
+    if (feedbackBox) {
+        feedbackBox.style.display = 'block';
+        feedbackBox.innerHTML = '⚡ กำลังส่งสัญญาณ Ping ทดสอบ Groq LPU และ Google Gemini API ทุกคีย์...';
+    }
+    
+    const groqKeyInput = document.getElementById('setting-groq-key')?.value.trim();
+    const geminiKeyInput = document.getElementById('setting-gemini-key')?.value.trim();
+    
+    try {
+        const res = await fetch('/api/settings/keys/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groq_api_key: groqKeyInput || null,
+                gemini_api_key: geminiKeyInput || null,
+                prune_invalid: prune
+            })
+        });
+        const data = await res.json();
+        
+        if (feedbackBox) {
+            feedbackBox.innerHTML = `<strong>${data.message || 'ตรวจสอบเสร็จสิ้น'}</strong>`;
+            const details = data.details || {};
+            let detailsHtml = '';
+            if (details.groq) {
+                const pruned = details.groq.pruned || [];
+                const rl = details.groq.rate_limited || [];
+                if (pruned.length > 0) detailsHtml += `<br>• ตัด Groq คีย์เสียทิ้ง: ${pruned.map(p => p.masked + ' (' + p.message + ')').join(', ')}`;
+                if (rl.length > 0) detailsHtml += `<br>• Groq ติด Rate Limit: ${rl.map(p => p.masked + ' (' + p.message + ')').join(', ')}`;
+            }
+            if (details.gemini) {
+                const pruned = details.gemini.pruned || [];
+                const rl = details.gemini.rate_limited || [];
+                if (pruned.length > 0) detailsHtml += `<br>• ตัด Gemini คีย์เสียทิ้ง: ${pruned.map(p => p.masked + ' (' + p.message + ')').join(', ')}`;
+                if (rl.length > 0) detailsHtml += `<br>• Gemini ติด Rate Limit: ${rl.map(p => p.masked + ' (' + p.message + ')').join(', ')}`;
+            }
+            if (detailsHtml) feedbackBox.innerHTML += detailsHtml;
+        }
+        
+        if (groqKeyInput && document.getElementById('setting-groq-key')) {
+            document.getElementById('setting-groq-key').value = '';
+        }
+        if (geminiKeyInput && document.getElementById('setting-gemini-key')) {
+            document.getElementById('setting-gemini-key').value = '';
+        }
+
+        await loadApiKeysSettings();
+        await loadAvailableModels();
+    } catch (err) {
+        if (feedbackBox) {
+            feedbackBox.innerHTML = `เกิดข้อผิดพลาดในการตรวจสอบ: ${err.message}`;
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
 }
 

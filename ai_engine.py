@@ -282,13 +282,16 @@ def clean_for_speech(text: str) -> str:
 
 class JavisAI:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("ไม่พบ GEMINI_API_KEY ใน .env")
-        
-        self.client = genai.Client(api_key=api_key)
+        from key_manager import key_manager
+        self.current_gemini_model = "gemini-2.5-flash"
+        self.active_gemini_key = key_manager.get_gemini_key()
+        if self.active_gemini_key:
+            self.client = genai.Client(api_key=self.active_gemini_key)
+        else:
+            self.client = None
         self.chat = None
-        self._init_chat()
+        if self.client:
+            self._init_chat()
 
     def _build_context(self):
         """สร้าง context เชิงยุทธศาสตร์จาก Directives ปัจจุบัน"""
@@ -308,12 +311,21 @@ class JavisAI:
                 status = "✅" if t["is_completed"] else "⬜"
                 freq = f" ({t['frequency']})" if t["frequency"] != "one-time" else ""
                 context += f"   {status} {t['title']}{freq}\n"
-        return context
+            return context
 
     def _init_chat(self, model="gemini-2.5-flash"):
         """สร้าง chat session ใหม่ พร้อม context J.A.R.V.I.S. และ Autonomous Agent Tools"""
+        if not self.client:
+            from key_manager import key_manager
+            gemini_key = key_manager.get_gemini_key()
+            if gemini_key:
+                self.active_gemini_key = gemini_key
+                self.client = genai.Client(api_key=gemini_key)
+            else:
+                return
+
         context = self._build_context()
-        full_prompt = SYSTEM_PROMPT + context
+        full_prompt = SYSTEM_PROMPT + (context or "")
         self.current_gemini_model = model
         
         history_records = db.get_chat_history(limit=20)
@@ -345,8 +357,9 @@ class JavisAI:
         self._init_chat(getattr(self, 'current_gemini_model', 'gemini-2.5-flash'))
 
     def _send_groq_message(self, message: str, model: str, language: str = "th", callsign: str = "ท่าน") -> dict:
-        groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
-        if not groq_api_key:
+        from key_manager import key_manager, mask_key
+        groq_keys = key_manager.get_all_groq_keys()
+        if not groq_keys:
             err_msg = (
                 f"My apologies, {callsign or 'Sir'}. The Groq API key is not configured in the system.\n\n"
                 f"Please provide your GROQ_API_KEY in the System Settings (⚙️) or in your .env file to activate {model}."
@@ -361,81 +374,91 @@ class JavisAI:
                 "agent_actions": []
             }
         
-        try:
-            client = Groq(api_key=groq_api_key)
-            context = self._build_context()
-            system_content = SYSTEM_PROMPT + context
-            
-            if language == "en":
-                active_callsign = callsign if callsign and callsign != "ท่าน" else "Sir"
-                formatted_input = f"[DIRECTIVE: Respond in English with authentic J.A.R.V.I.S. British butler persona. Address the user as '{active_callsign}'.]\nUser Command: {message}"
-            else:
-                active_callsign = callsign or "ท่าน"
-                formatted_input = f"[DIRECTIVE: ตอบเป็นภาษาไทยอย่างสุขุมและเฉียบคม สไตล์ J.A.R.V.I.S. และเรียกผู้ใช้งานว่า '{active_callsign}' เสมอ]\nคำสั่งจากผู้ใช้: {message}"
+        # Round-robin rotation & retry loop across available keys
+        max_attempts = max(1, len(groq_keys))
+        last_error = ""
 
-            messages = [{"role": "system", "content": system_content}]
-            
-            history_records = db.get_chat_history(limit=12)
-            for msg in history_records:
-                role = "user" if msg["role"] == "user" else "assistant"
-                messages.append({"role": role, "content": msg["content"]})
+        context = self._build_context()
+        system_content = SYSTEM_PROMPT + (context or "")
+        
+        if language == "en":
+            active_callsign = callsign if callsign and callsign != "ท่าน" else "Sir"
+            formatted_input = f"[DIRECTIVE: Respond in English with authentic J.A.R.V.I.S. British butler persona. Address the user as '{active_callsign}'.]\nUser Command: {message}"
+        else:
+            active_callsign = callsign or "ท่าน"
+            formatted_input = f"[DIRECTIVE: ตอบเป็นภาษาไทยอย่างสุขุมและเฉียบคม สไตล์ J.A.R.V.I.S. และเรียกผู้ใช้งานว่า '{active_callsign}' เสมอ]\nคำสั่งจากผู้ใช้: {message}"
+
+        messages = [{"role": "system", "content": system_content}]
+        history_records = db.get_chat_history(limit=12)
+        for msg in history_records:
+            role = "user" if msg["role"] == "user" else "assistant"
+            messages.append({"role": role, "content": msg["content"]})
+        messages.append({"role": "user", "content": formatted_input})
+
+        for attempt in range(max_attempts):
+            active_key = key_manager.get_groq_key()
+            if not active_key:
+                break
+            try:
+                client = Groq(api_key=active_key, timeout=30.0)
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=2048
+                )
+                raw_text = completion.choices[0].message.content or ""
+                clean_message, goals_data = self._parse_response(raw_text)
                 
-            messages.append({"role": "user", "content": formatted_input})
-            
-            completion = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=2048
-            )
-            raw_text = completion.choices[0].message.content or ""
-            clean_message, goals_data = self._parse_response(raw_text)
-            
-            created_goals = []
-            for goal_data in goals_data:
-                try:
-                    goal_id = db.create_goal(
-                        title=goal_data.get("title", "ยุทธการใหม่"),
-                        description=goal_data.get("description", ""),
-                        category=goal_data.get("category", "personal"),
-                        target_date=goal_data.get("target_date")
-                    )
-                    for task_data in goal_data.get("tasks", []):
-                        db.create_task(
-                            goal_id=goal_id,
-                            title=task_data.get("title", ""),
-                            description=task_data.get("description", ""),
-                            frequency=task_data.get("frequency", "one-time"),
-                            due_date=task_data.get("due_date")
+                created_goals = []
+                for goal_data in goals_data:
+                    try:
+                        goal_id = db.create_goal(
+                            title=goal_data.get("title", "ยุทธการใหม่"),
+                            description=goal_data.get("description", ""),
+                            category=goal_data.get("category", "personal"),
+                            target_date=goal_data.get("target_date")
                         )
-                    created_goals.append(db.get_goal(goal_id))
-                except Exception as e:
-                    print(f"Error creating directive with Groq: {e}")
-            
-            if created_goals:
-                self.refresh_context()
+                        for task_data in goal_data.get("tasks", []):
+                            db.create_task(
+                                goal_id=goal_id,
+                                title=task_data.get("title", ""),
+                                description=task_data.get("description", ""),
+                                frequency=task_data.get("frequency", "one-time"),
+                                due_date=task_data.get("due_date")
+                            )
+                        created_goals.append(db.get_goal(goal_id))
+                    except Exception as e:
+                        print(f"Error creating directive with Groq: {e}")
                 
-            speech_text = clean_for_speech(clean_message)
-            return {
-                "message": clean_message,
-                "speech_text": speech_text,
-                "created_goals": created_goals,
-                "agent_actions": []
-            }
-        except Exception as e:
-            error_str = str(e)
-            print(f"Groq API Error: {error_str}")
-            fallback_msg = (
-                f"My apologies, {callsign or 'Sir'}, an anomaly occurred with the Groq neural link: {error_str}"
-                if language == "en" else
-                f"ขออภัยครับ{callsign or 'ท่าน'} เกิดข้อขัดข้องในการเชื่อมต่อโครงข่ายประสาทเทียม Groq: {error_str}\n\nกรุณาตรวจสอบ Groq API Key ในหน้าต่างตั้งค่าระบบครับ"
-            )
-            return {
-                "message": fallback_msg,
-                "speech_text": clean_for_speech(fallback_msg),
-                "created_goals": [],
-                "agent_actions": []
-            }
+                if created_goals:
+                    self.refresh_context()
+                    
+                speech_text = clean_for_speech(clean_message)
+                return {
+                    "message": clean_message,
+                    "speech_text": speech_text,
+                    "created_goals": created_goals,
+                    "agent_actions": []
+                }
+            except Exception as e:
+                err_str = str(e)
+                last_error = err_str
+                print(f"Groq API Error on key {mask_key(active_key)}: {err_str}. Rotating to next key (attempt {attempt + 1}/{max_attempts})...")
+                key_manager.mark_key_failed("groq", active_key, err_str)
+                continue
+
+        fallback_msg = (
+            f"My apologies, {callsign or 'Sir'}, all configured Groq keys encountered an error: {last_error}"
+            if language == "en" else
+            f"ขออภัยครับ{callsign or 'ท่าน'} กุญแจ Groq API ทั้งหมดในระบบพบข้อขัดข้อง: {last_error}\n\nกรุณาตรวจสอบหรือเพิ่ม Groq API Key ในหน้าต่างตั้งค่าระบบครับ"
+        )
+        return {
+            "message": fallback_msg,
+            "speech_text": clean_for_speech(fallback_msg),
+            "created_goals": [],
+            "agent_actions": []
+        }
 
     def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน"):
         """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, auto-retry, และภาษา/สรรพนาม)"""
@@ -509,8 +532,15 @@ class JavisAI:
                 if is_retryable and attempt < max_retries - 1:
                     wait_time = 2 ** (attempt + 1)
                     print(f"⏳ J.A.R.V.I.S. Re-routing neural link... ({wait_time}s)")
+                    from key_manager import key_manager
+                    if hasattr(self, 'active_gemini_key') and self.active_gemini_key:
+                        key_manager.mark_key_failed("gemini", self.active_gemini_key, error_str)
+                    new_gemini_key = key_manager.get_gemini_key()
+                    if new_gemini_key:
+                        self.active_gemini_key = new_gemini_key
+                        self.client = genai.Client(api_key=new_gemini_key)
                     time.sleep(wait_time)
-                    self._init_chat()
+                    self._init_chat(model=model)
                     continue
                 
                 fallback_msg = (
