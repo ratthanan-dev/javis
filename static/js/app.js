@@ -5,6 +5,7 @@
 const API = {
     chat: '/api/chat',
     chatHistory: '/api/chat/history',
+    chatSessions: '/api/chat/sessions',
     briefing: '/api/briefing',
     tts: '/api/tts',
     stt: '/api/stt',
@@ -13,6 +14,9 @@ const API = {
     tasks: '/api/tasks',
     dashboard: '/api/dashboard',
 };
+
+// Current Active Chat Session ID
+let currentSessionId = localStorage.getItem('stark_current_session_id') || 'default';
 
 // User Preferences & Settings (Stored in LocalStorage)
 const userSettings = {
@@ -1317,16 +1321,17 @@ async function purgeCompletedOps() {
 
 async function purgeChatComms() {
     const confirmPrompt = userSettings.language === 'en'
-        ? 'Clear all communication logs, Sir?'
-        : 'ยืนยันการล้างประวัติการสื่อสารทั้งหมดใช่หรือไม่ครับท่าน?';
+        ? 'Clear communication log for this conversation, Sir?'
+        : 'ยืนยันการล้างประวัติการสื่อสารในห้องนี้ใช่หรือไม่ครับท่าน?';
     if (!confirm(confirmPrompt)) return;
 
     try {
         playBeep(400, 0.1);
-        await fetch('/api/chat/history', { method: 'DELETE' });
-        loadChatHistory();
+        await fetch(`/api/chat/history?session_id=${encodeURIComponent(currentSessionId || 'default')}`, { method: 'DELETE' });
+        loadChatHistory(currentSessionId);
+        loadChatSessions();
         playConfirmChime();
-        const msg = userSettings.language === 'en' ? 'Communication log purged, Sir.' : 'ล้างประวัติการสื่อสารทั้งหมดเรียบร้อยครับท่าน';
+        const msg = userSettings.language === 'en' ? 'Communication log purged, Sir.' : 'ล้างประวัติการสื่อสารเรียบร้อยครับท่าน';
         speakJarvis(msg);
     } catch (e) {}
 }
@@ -1345,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadDashboard();
     loadTelemetry();
+    loadChatSessions();
     loadChatHistory();
     setInterval(loadTelemetry, 5000);
 
@@ -1767,7 +1773,8 @@ async function submitCommand() {
                 message,
                 model: currentModel || 'gemini-2.5-flash',
                 language: userSettings.language,
-                callsign: userSettings.callsign
+                callsign: userSettings.callsign,
+                session_id: currentSessionId || 'default'
             }),
         });
         const data = await res.json();
@@ -1786,6 +1793,9 @@ async function submitCommand() {
             loadDashboard();
             loadTelemetry();
         }
+
+        // Refresh sessions list to display updated thread title and ordering
+        loadChatSessions();
     } catch (err) {
         removeTypingComms();
         appendCommsEntry('assistant', userSettings.language === 'en' ? 'Apologies, Sir. Neural comms link encountered an anomaly.' : 'ขออภัยครับท่าน ระบบเครือข่ายขัดข้อง กรุณาลองสั่งการใหม่อีกครั้งครับ');
@@ -1798,9 +1808,10 @@ async function submitCommand() {
     }
 }
 
-async function loadChatHistory() {
+async function loadChatHistory(sessionId) {
+    const targetSessionId = sessionId || currentSessionId || 'default';
     try {
-        const res = await fetch(API.chatHistory);
+        const res = await fetch(`${API.chatHistory}?session_id=${encodeURIComponent(targetSessionId)}`);
         const data = await res.json();
         const container = document.getElementById('chat-messages');
         const t = I18N[userSettings.language] || I18N.th;
@@ -1813,9 +1824,8 @@ async function loadChatHistory() {
                     msg.content
                 );
             });
-        } else {
-            appendCommsEntry('assistant', t.welcomeMsg);
         }
+        updateWelcomeHeroVisibility();
     } catch (err) {
         console.error('Failed to load chat history:', err);
     }
@@ -1986,10 +1996,134 @@ document.addEventListener('click', (event) => {
     collapseSidebar(event);
 });
 
-function handleNewMissionClick() {
-    playBeep(1300, 0.05);
+async function loadChatSessions() {
+    try {
+        const res = await fetch(API.chatSessions);
+        const data = await res.json();
+        const container = document.getElementById('sidebar-chat-sessions-list');
+        if (!container) return;
+
+        const sessions = data.sessions || [];
+        if (sessions.length === 0) {
+            container.innerHTML = `<div class="sidebar-empty-hint">${userSettings.language === 'en' ? 'No chat sessions' : 'ยังไม่มีประวัติการสนทนา'}</div>`;
+            return;
+        }
+
+        // ตรวจสอบว่า currentSessionId ยังคงมีอยู่ในรายการหรือไม่
+        const sessionExists = sessions.some(s => s.id === currentSessionId);
+        if (!sessionExists && sessions.length > 0) {
+            currentSessionId = sessions[0].id;
+            localStorage.setItem('stark_current_session_id', currentSessionId);
+        }
+
+        container.innerHTML = sessions.map(s => {
+            const isActive = s.id === currentSessionId;
+            const title = escapeHtml(s.title || (userSettings.language === 'en' ? 'New Chat' : 'บทสนทนาใหม่'));
+            return `
+                <div class="chat-session-pill ${isActive ? 'active' : ''}" 
+                     data-session-id="${escapeHtml(s.id)}" 
+                     onclick="switchChatSession('${escapeHtml(s.id)}')" 
+                     title="${title}">
+                    <div class="session-info">
+                        <span class="session-icon">💬</span>
+                        <span class="session-title">${title}</span>
+                    </div>
+                    <button class="session-delete-btn" 
+                            onclick="deleteChatSession('${escapeHtml(s.id)}', event)" 
+                            title="${userSettings.language === 'en' ? 'Delete Chat' : 'ลบการสนทนานี้'}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load chat sessions:', err);
+    }
+}
+
+async function switchChatSession(sessionId) {
+    if (!sessionId) return;
+    currentSessionId = sessionId;
+    localStorage.setItem('stark_current_session_id', sessionId);
+    playBeep(1100, 0.04);
     switchView('chat');
+    
+    // ไฮไลต์ session ที่เลือกใน sidebar
+    document.querySelectorAll('.chat-session-pill').forEach(el => {
+        if (el.getAttribute('data-session-id') === sessionId) {
+            el.classList.add('active');
+        } else {
+            el.classList.remove('active');
+        }
+    });
+
+    await loadChatHistory(sessionId);
     document.getElementById('hud-command-input')?.focus();
+}
+
+async function handleNewMissionClick() {
+    playBeep(1300, 0.05);
+    try {
+        const res = await fetch(API.chatSessions, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: userSettings.language === 'en' ? 'New Chat' : 'บทสนทนาใหม่'
+            })
+        });
+        const data = await res.json();
+        if (data.session && data.session.id) {
+            currentSessionId = data.session.id;
+            localStorage.setItem('stark_current_session_id', currentSessionId);
+            await loadChatSessions();
+            
+            // ล้างหน้าจอแชทและแสดง welcome hero
+            const container = document.getElementById('chat-messages');
+            if (container) container.innerHTML = '';
+            updateWelcomeHeroVisibility();
+            
+            switchView('chat');
+            document.getElementById('hud-command-input')?.focus();
+        }
+    } catch (err) {
+        console.error('Failed to create new chat session:', err);
+    }
+}
+
+async function deleteChatSession(sessionId, event) {
+    if (event) event.stopPropagation();
+    
+    const confirmMsg = userSettings.language === 'en'
+        ? 'Delete this chat conversation, Sir?'
+        : 'ท่านต้องการลบประวัติการสนทนานี้ใช่หรือไม่ครับ?';
+    if (!confirm(confirmMsg)) return;
+
+    playBeep(600, 0.08);
+    try {
+        await fetch(`${API.chatSessions}/${encodeURIComponent(sessionId)}`, {
+            method: 'DELETE'
+        });
+        
+        // ถ้าลบ session ปัจจุบัน ให้สลับไปยัง session แรกที่เหลือ
+        if (currentSessionId === sessionId) {
+            const sessionsRes = await fetch(API.chatSessions);
+            const sessionsData = await sessionsRes.json();
+            const remaining = sessionsData.sessions || [];
+            if (remaining.length > 0) {
+                currentSessionId = remaining[0].id;
+            } else {
+                currentSessionId = 'default';
+            }
+            localStorage.setItem('stark_current_session_id', currentSessionId);
+            await loadChatHistory(currentSessionId);
+        }
+        await loadChatSessions();
+    } catch (err) {
+        console.error('Failed to delete chat session:', err);
+    }
 }
 
 function copyMessageText(btn, text) {
@@ -2006,7 +2140,7 @@ function updateWelcomeHeroVisibility() {
     const hero = document.getElementById('chat-welcome-hero');
     const container = document.getElementById('chat-messages');
     if (hero && container) {
-        if (container.children.length > 1) {
+        if (container.children.length > 0) {
             hero.style.display = 'none';
         } else {
             hero.style.display = 'flex';

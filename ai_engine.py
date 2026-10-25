@@ -280,6 +280,37 @@ def clean_for_speech(text: str) -> str:
     return t
 
 
+def get_clean_chat_history_for_context(session_id: str = "default", limit: int = 20):
+    """ดึงประวัติแชทเฉพาะรอบก่อนหน้า ทำความสะอาดให้มีบทบาทสลับกันอย่างถูกต้อง user -> assistant/model
+    และจบด้วย assistant เพื่อให้รอบใหม่สามารถส่ง user เข้าไปได้อย่างสมบูรณ์ ไม่ตกหล่นหรือซ้ำซ้อน"""
+    raw_history = db.get_chat_history(session_id=session_id, limit=limit)
+    if not raw_history:
+        return []
+
+    # ถ้าข้อความล่าสุดใน DB เป็น role 'user' (กรณี main.py บันทึก user message ล่าสุดไปก่อน)
+    # ให้ตัดออกชั่วคราว เพราะข้อความนี้จะถูกส่งเป็น prompt สดในรอบปัจจุบัน
+    if raw_history and raw_history[-1]["role"] == "user":
+        raw_history = raw_history[:-1]
+
+    cleaned = []
+    expected_role = "user"
+    for msg in raw_history:
+        role = "user" if msg["role"] == "user" else "assistant"
+        if role == expected_role:
+            cleaned.append({"role": role, "content": msg["content"]})
+            expected_role = "assistant" if expected_role == "user" else "user"
+        elif role == "user" and expected_role == "assistant":
+            # หากมี user ซ้อนกันโดยไม่มี assistant ตอบ ให้ใช้ user อันล่าสุด
+            if cleaned:
+                cleaned[-1] = {"role": role, "content": msg["content"]}
+
+    # ต้องจบด้วย assistant เพื่อให้ Gemini/Groq เปิดรับ turn ถัดไปของ user ได้โดยไม่เกิด validation error
+    if cleaned and cleaned[-1]["role"] == "user":
+        cleaned = cleaned[:-1]
+
+    return cleaned
+
+
 class JavisAI:
     def __init__(self):
         from key_manager import key_manager
@@ -289,9 +320,15 @@ class JavisAI:
             self.client = genai.Client(api_key=self.active_gemini_key)
         else:
             self.client = None
-        self.chat = None
-        if self.client:
-            self._init_chat()
+        # เก็บ active chat sessions แยกตาม session_id ในหน่วยความจำ
+        self.sessions = {}
+
+    def clear_session_cache(self, session_id: str = None):
+        """ล้าง cache ของ session ในหน่วยความจำ"""
+        if session_id:
+            self.sessions.pop(session_id, None)
+        else:
+            self.sessions.clear()
 
     def _build_context(self):
         """สร้าง context เชิงยุทธศาสตร์จาก Directives ปัจจุบัน"""
@@ -311,10 +348,10 @@ class JavisAI:
                 status = "✅" if t["is_completed"] else "⬜"
                 freq = f" ({t['frequency']})" if t["frequency"] != "one-time" else ""
                 context += f"   {status} {t['title']}{freq}\n"
-            return context
+        return context
 
-    def _init_chat(self, model="gemini-2.5-flash"):
-        """สร้าง chat session ใหม่ พร้อม context J.A.R.V.I.S. และ Autonomous Agent Tools"""
+    def _get_or_create_chat(self, session_id: str = "default", model: str = "gemini-2.5-flash"):
+        """ดึงหรือสร้าง chat session ของ Google GenAI แยกตาม session_id พร้อมกู้คืน context ประวัติที่สมบูรณ์"""
         if not self.client:
             from key_manager import key_manager
             gemini_key = key_manager.get_gemini_key()
@@ -322,41 +359,62 @@ class JavisAI:
                 self.active_gemini_key = gemini_key
                 self.client = genai.Client(api_key=gemini_key)
             else:
-                return
+                return None
+
+        # หากมี chat ใน cache และโมเดลตรงกัน ให้ใช้ต่อได้ทันที
+        cached = self.sessions.get(session_id)
+        if cached and cached.get("model") == model and cached.get("chat"):
+            return cached["chat"]
 
         context = self._build_context()
         full_prompt = SYSTEM_PROMPT + (context or "")
         self.current_gemini_model = model
-        
-        history_records = db.get_chat_history(limit=20)
+
+        # ดึงประวัติที่ทำความสะอาดแล้วเฉพาะ session นี้
+        cleaned_history = get_clean_chat_history_for_context(session_id=session_id, limit=20)
         history = []
-        for msg in history_records:
+        for msg in cleaned_history:
             role = "user" if msg["role"] == "user" else "model"
             history.append({"role": role, "parts": [{"text": msg["content"]}]})
-        
+
         tools = JAVIS_AGENT_TOOLS if model == "gemini-2.5-flash" else None
         config = {"system_instruction": full_prompt}
         if tools:
             config["tools"] = tools
 
+        chat = None
         try:
-            self.chat = self.client.chats.create(
+            chat = self.client.chats.create(
                 model=model,
                 config=config,
                 history=history if history else None
             )
         except Exception as e:
-            print(f"Chat init with history failed ({e}). Starting fresh session.")
-            self.chat = self.client.chats.create(
-                model=model,
-                config=config
-            )
+            print(f"Chat init with history for session '{session_id}' failed ({e}). Starting fresh session.")
+            try:
+                chat = self.client.chats.create(
+                    model=model,
+                    config=config
+                )
+            except Exception as e2:
+                print(f"Failed to create chat: {e2}")
+                return None
+
+        self.sessions[session_id] = {
+            "chat": chat,
+            "model": model
+        }
+        return chat
+
+    def _init_chat(self, model="gemini-2.5-flash", session_id="default"):
+        """Legacy helper เพื่อความเข้ากันได้"""
+        return self._get_or_create_chat(session_id=session_id, model=model)
 
     def refresh_context(self):
-        """รีเฟรช context เมื่อมีการเปลี่ยนแปลง Directives"""
-        self._init_chat(getattr(self, 'current_gemini_model', 'gemini-2.5-flash'))
+        """รีเฟรช context เมื่อมีการเปลี่ยนแปลง Directives (ล้าง session cache เพื่อให้สร้างใหม่พร้อม context ล่าสุด)"""
+        self.clear_session_cache()
 
-    def _send_groq_message(self, message: str, model: str, language: str = "th", callsign: str = "ท่าน") -> dict:
+    def _send_groq_message(self, message: str, model: str, language: str = "th", callsign: str = "ท่าน", session_id: str = "default") -> dict:
         from key_manager import key_manager, mask_key
         groq_keys = key_manager.get_all_groq_keys()
         if not groq_keys:
@@ -388,11 +446,11 @@ class JavisAI:
             active_callsign = callsign or "ท่าน"
             formatted_input = f"[DIRECTIVE: ตอบเป็นภาษาไทยอย่างสุขุมและเฉียบคม สไตล์ J.A.R.V.I.S. และเรียกผู้ใช้งานว่า '{active_callsign}' เสมอ]\nคำสั่งจากผู้ใช้: {message}"
 
+        # ส่งประวัติของ session นี้โดยเฉพาะ สลับบทบาท user/assistant อย่างถูกต้อง
         messages = [{"role": "system", "content": system_content}]
-        history_records = db.get_chat_history(limit=12)
-        for msg in history_records:
-            role = "user" if msg["role"] == "user" else "assistant"
-            messages.append({"role": role, "content": msg["content"]})
+        cleaned_history = get_clean_chat_history_for_context(session_id=session_id, limit=16)
+        for msg in cleaned_history:
+            messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": formatted_input})
 
         for attempt in range(max_attempts):
@@ -460,16 +518,13 @@ class JavisAI:
             "agent_actions": []
         }
 
-    def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน"):
-        """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, auto-retry, และภาษา/สรรพนาม)"""
+    def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน", session_id: str = "default"):
+        """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, session_id แยกบริบท, auto-retry)"""
         # 1. Routing สำหรับ Groq Models
         if model and (model.startswith(("llama", "deepseek", "mixtral", "gemma")) or "groq" in model.lower()):
-            return self._send_groq_message(message, model=model, language=language, callsign=callsign)
+            return self._send_groq_message(message, model=model, language=language, callsign=callsign, session_id=session_id)
 
         # 2. Routing สำหรับ Gemini Models
-        if hasattr(self, 'current_gemini_model') and self.current_gemini_model != model:
-            self._init_chat(model=model)
-
         max_retries = 3
         
         # ใส่คำสั่งระบุภาษาและสรรพนามเรียกผู้ใช้
@@ -482,9 +537,13 @@ class JavisAI:
 
         for attempt in range(max_retries):
             try:
+                chat = self._get_or_create_chat(session_id=session_id, model=model)
+                if not chat:
+                    raise Exception("ระบบ AI ยังไม่พร้อมทำงาน กรุณาตรวจสอบ Gemini API Key")
+
                 action_start_count = len(agent_action_log)
                 
-                response = self.chat.send_message(formatted_input)
+                response = chat.send_message(formatted_input)
                 raw_text = response.text or ""
                 
                 turn_actions = agent_action_log[action_start_count:]
@@ -540,7 +599,7 @@ class JavisAI:
                         self.active_gemini_key = new_gemini_key
                         self.client = genai.Client(api_key=new_gemini_key)
                     time.sleep(wait_time)
-                    self._init_chat(model=model)
+                    self.clear_session_cache(session_id=session_id)
                     continue
                 
                 fallback_msg = (

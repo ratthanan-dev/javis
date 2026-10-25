@@ -1,6 +1,7 @@
 import os
 import io
 import time
+import uuid
 import asyncio
 from fastapi import FastAPI, Request, Response, UploadFile, File
 from fastapi.staticfiles import StaticFiles
@@ -70,33 +71,99 @@ class ChatRequest(BaseModel):
     model: Optional[str] = "gemini-2.5-flash"
     language: Optional[str] = "th"
     callsign: Optional[str] = "ท่าน"
+    session_id: Optional[str] = "default"
+
+
+class CreateSessionRequest(BaseModel):
+    title: Optional[str] = "บทสนทนาใหม่"
+
+
+class UpdateSessionRequest(BaseModel):
+    title: str
+
+
+@app.get("/api/chat/sessions")
+def list_chat_sessions():
+    """ดึงรายชื่อห้องสนทนาทั้งหมด"""
+    sessions = db.get_chat_sessions()
+    return {"sessions": sessions}
+
+
+@app.post("/api/chat/sessions")
+def create_new_chat_session(req: Optional[CreateSessionRequest] = None):
+    """สร้างห้องสนทนาใหม่"""
+    session_id = f"session_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    title = (req.title if req and req.title else "บทสนทนาใหม่").strip()
+    session = db.create_chat_session(session_id, title)
+    return {"session": session}
+
+
+@app.get("/api/chat/sessions/{session_id}")
+def get_chat_session_detail(session_id: str):
+    """ดึงข้อมูลห้องสนทนาและประวัติข้อความ"""
+    session = db.get_chat_session(session_id)
+    if not session:
+        return JSONResponse({"error": "ไม่พบห้องสนทนา"}, status_code=404)
+    messages = db.get_chat_history(session_id=session_id, limit=100)
+    return {"session": session, "messages": messages}
+
+
+@app.patch("/api/chat/sessions/{session_id}")
+def update_session(session_id: str, req: UpdateSessionRequest):
+    """เปลี่ยนชื่อห้องสนทนา"""
+    db.update_chat_session_title(session_id, req.title)
+    return {"success": True}
+
+
+@app.delete("/api/chat/sessions/{session_id}")
+def remove_chat_session(session_id: str):
+    """ลบห้องสนทนา"""
+    db.delete_chat_session(session_id)
+    javis_ai.clear_session_cache(session_id=session_id)
+    return {"success": True}
+
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    """ส่งคำสั่งหรือสนทนากับ J.A.R.V.I.S."""
+    """ส่งคำสั่งหรือสนทนากับ J.A.R.V.I.S. (รองรับ session_id และ auto-title)"""
     user_msg = req.message.strip()
     if not user_msg:
         return JSONResponse({"error": "กรุณาระบุคำสั่ง"}, status_code=400)
     
+    session_id = (req.session_id or "default").strip()
+    session = db.get_chat_session(session_id)
+    if not session:
+        db.create_chat_session(session_id, "บทสนทนาใหม่")
+
     # บันทึกข้อความผู้ใช้
-    db.save_message("user", user_msg)
+    db.save_message("user", user_msg, session_id=session_id)
     
-    # ส่งให้ J.A.R.V.I.S. ประมวลผล (พร้อมระบุโมเดลที่เลือก)
+    # ส่งให้ J.A.R.V.I.S. ประมวลผล (พร้อมระบุโมเดลและ session_id)
     result = javis_ai.send_message(
         user_msg, 
         model=req.model or "gemini-2.5-flash",
         language=req.language or "th", 
-        callsign=req.callsign or "ท่าน"
+        callsign=req.callsign or "ท่าน",
+        session_id=session_id
     )
     
     # บันทึกข้อความ J.A.R.V.I.S.
-    db.save_message("assistant", result["message"])
+    db.save_message("assistant", result["message"], session_id=session_id)
     
+    # Auto-title สำหรับห้องสนทนาที่ยังเป็นชื่อเริ่มต้น
+    current_session = db.get_chat_session(session_id)
+    if current_session and current_session.get("title") in ["บทสนทนาใหม่", "New Chat", "บทสนทนาหลัก"]:
+        clean_title = user_msg[:32].strip()
+        if len(user_msg) > 32:
+            clean_title += "..."
+        db.update_chat_session_title(session_id, clean_title)
+
     return {
         "message": result["message"],
         "speech_text": result.get("speech_text", result["message"]),
         "created_goals": result["created_goals"],
-        "agent_actions": result.get("agent_actions", [])
+        "agent_actions": result.get("agent_actions", []),
+        "session_id": session_id
     }
 
 
@@ -210,16 +277,23 @@ def trigger_briefing(req: Optional[BriefingRequest] = None):
 
 
 @app.get("/api/chat/history")
-def get_chat_history():
-    """ดึงประวัติการสื่อสาร Comms Log"""
-    messages = db.get_chat_history(limit=100)
-    return {"messages": messages}
+def get_chat_history(session_id: Optional[str] = "default"):
+    """ดึงประวัติการสื่อสาร Comms Log ตาม session_id"""
+    active_session_id = (session_id or "default").strip()
+    messages = db.get_chat_history(session_id=active_session_id, limit=100)
+    return {"messages": messages, "session_id": active_session_id}
 
 
 @app.delete("/api/chat/history")
-def clear_chat_history():
-    """ล้างประวัติการสื่อสาร Comms Log"""
-    db.clear_all_history()
+def clear_chat_history(session_id: Optional[str] = None):
+    """ล้างประวัติการสื่อสาร Comms Log (เฉพาะ session หรือทั้งหมด)"""
+    if session_id:
+        active_session_id = session_id.strip()
+        db.clear_chat_history(session_id=active_session_id)
+        javis_ai.clear_session_cache(session_id=active_session_id)
+    else:
+        db.clear_all_history()
+        javis_ai.clear_session_cache()
     return {"success": True}
 
 

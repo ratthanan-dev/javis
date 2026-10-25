@@ -50,13 +50,35 @@ def init_db():
             FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now', 'localtime')),
+            updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+        );
+
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT DEFAULT 'default',
             role TEXT NOT NULL,
             content TEXT NOT NULL,
             created_at TEXT DEFAULT (datetime('now', 'localtime'))
         );
     """)
+
+    # Migration check: Ensure session_id column exists in chat_messages
+    cursor.execute("PRAGMA table_info(chat_messages)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "session_id" not in columns:
+        cursor.execute("ALTER TABLE chat_messages ADD COLUMN session_id TEXT DEFAULT 'default'")
+
+    # Ensure default chat session exists
+    cursor.execute("SELECT id FROM chat_sessions WHERE id = 'default'")
+    if not cursor.fetchone():
+        cursor.execute(
+            "INSERT INTO chat_sessions (id, title, created_at, updated_at) VALUES ('default', 'บทสนทนาหลัก', datetime('now', 'localtime'), datetime('now', 'localtime'))"
+        )
+    cursor.execute("UPDATE chat_messages SET session_id = 'default' WHERE session_id IS NULL OR session_id = ''")
 
     conn.commit()
     conn.close()
@@ -234,28 +256,123 @@ def get_streak():
     return streak
 
 
-# ==================== CHAT ====================
+# ==================== CHAT & SESSIONS ====================
 
-def save_message(role, content):
-    """บันทึกข้อความแชท"""
+def create_chat_session(session_id: str, title: str = "บทสนทนาใหม่"):
+    """สร้างห้องสนทนาใหม่"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR IGNORE INTO chat_sessions (id, title, created_at, updated_at) VALUES (?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))",
+        (session_id, title)
+    )
+    conn.commit()
+    conn.close()
+    return {"id": session_id, "title": title}
+
+
+def get_chat_sessions():
+    """ดึงรายการห้องสนทนาทั้งหมด เรียงตามเวลาใช้งานล่าสุด พร้อมจำนวนข้อความ"""
+    conn = get_db()
+    sessions = conn.execute("""
+        SELECT s.id, s.title, s.created_at, s.updated_at, COUNT(m.id) as message_count
+        FROM chat_sessions s
+        LEFT JOIN chat_messages m ON s.id = m.session_id
+        GROUP BY s.id
+        ORDER BY s.updated_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(s) for s in sessions]
+
+
+def get_chat_session(session_id: str):
+    """ดึงข้อมูลห้องสนทนาเดี่ยว"""
+    conn = get_db()
+    session = conn.execute("SELECT * FROM chat_sessions WHERE id = ?", (session_id,)).fetchone()
+    conn.close()
+    return dict(session) if session else None
+
+
+def update_chat_session_title(session_id: str, title: str):
+    """อัปเดตหัวข้อการสนทนา"""
     conn = get_db()
     conn.execute(
-        "INSERT INTO chat_messages (role, content) VALUES (?, ?)",
-        (role, content)
+        "UPDATE chat_sessions SET title = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
+        (title.strip(), session_id)
     )
     conn.commit()
     conn.close()
 
 
-def get_chat_history(limit=50):
-    """ดึงประวัติแชท"""
+def touch_chat_session(session_id: str):
+    """อัปเดตเวลา updated_at ของห้องสนทนา"""
+    conn = get_db()
+    conn.execute(
+        "UPDATE chat_sessions SET updated_at = datetime('now', 'localtime') WHERE id = ?",
+        (session_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_chat_session(session_id: str):
+    """ลบห้องสนทนาและประวัติข้อความทั้งหมดในห้องนั้น"""
+    conn = get_db()
+    conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+    
+    # ถ้าไม่มี session เหลืออยู่เลย ให้สร้าง default คืนมา
+    remaining = conn.execute("SELECT COUNT(*) as count FROM chat_sessions").fetchone()["count"]
+    if remaining == 0:
+        conn.execute(
+            "INSERT INTO chat_sessions (id, title, created_at, updated_at) VALUES ('default', 'บทสนทนาหลัก', datetime('now', 'localtime'), datetime('now', 'localtime'))"
+        )
+    conn.commit()
+    conn.close()
+
+
+def save_message(role: str, content: str, session_id: str = "default"):
+    """บันทึกข้อความแชทระบุ session_id"""
+    conn = get_db()
+    
+    # ตรวจสอบว่า session มีอยู่จริงหรือไม่ ถ้าไม่มีให้สร้างอัตโนมัติ
+    existing = conn.execute("SELECT id FROM chat_sessions WHERE id = ?", (session_id,)).fetchone()
+    if not existing:
+        conn.execute(
+            "INSERT INTO chat_sessions (id, title, created_at, updated_at) VALUES (?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))",
+            (session_id, "บทสนทนาใหม่")
+        )
+    else:
+        conn.execute(
+            "UPDATE chat_sessions SET updated_at = datetime('now', 'localtime') WHERE id = ?",
+            (session_id,)
+        )
+        
+    conn.execute(
+        "INSERT INTO chat_messages (session_id, role, content) VALUES (?, ?, ?)",
+        (session_id, role, content)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_chat_history(session_id: str = "default", limit: int = 50):
+    """ดึงประวัติแชทตาม session_id"""
     conn = get_db()
     messages = conn.execute(
-        "SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?",
-        (limit,)
+        "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+        (session_id, limit)
     ).fetchall()
     conn.close()
     return [dict(m) for m in reversed(messages)]
+
+
+def clear_chat_history(session_id: str = "default"):
+    """ล้างประวัติแชทเฉพาะห้องที่ระบุ"""
+    conn = get_db()
+    conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
 
 
 def clear_completed_tasks():
@@ -267,7 +384,7 @@ def clear_completed_tasks():
 
 
 def clear_all_history():
-    """ล้างประวัติการสื่อสารทั้งหมด"""
+    """ล้างประวัติการสื่อสารทั้งหมดทุกห้อง"""
     conn = get_db()
     conn.execute("DELETE FROM chat_messages")
     conn.commit()
