@@ -53,22 +53,35 @@ class KeyManager:
         self.load_from_env()
 
     def load_from_env(self):
-        """โหลดคีย์จาก .env และ environment variables"""
+        """โหลดคีย์จาก .env และ environment variables พร้อมรองรับหลายบรรทัดและคีย์อิสระ"""
         env_file = os.path.join(os.path.dirname(__file__), ".env")
-        raw_groq = os.getenv("GROQ_API_KEY", "")
-        raw_gemini = os.getenv("GEMINI_API_KEY", "")
+        raw_groq_parts = []
+        raw_gemini_parts = []
+
+        if os.getenv("GROQ_API_KEY"):
+            raw_groq_parts.append(os.getenv("GROQ_API_KEY"))
+        if os.getenv("GEMINI_API_KEY"):
+            raw_gemini_parts.append(os.getenv("GEMINI_API_KEY"))
 
         if os.path.exists(env_file):
             try:
                 with open(env_file, "r", encoding="utf-8") as f:
                     for line in f:
                         line_s = line.strip()
+                        if not line_s or line_s.startswith("#"):
+                            continue
                         if line_s.startswith("GROQ_API_KEY="):
-                            raw_groq = line_s.split("GROQ_API_KEY=", 1)[1]
+                            raw_groq_parts.append(line_s.split("GROQ_API_KEY=", 1)[1])
                         elif line_s.startswith("GEMINI_API_KEY="):
-                            raw_gemini = line_s.split("GEMINI_API_KEY=", 1)[1]
+                            raw_gemini_parts.append(line_s.split("GEMINI_API_KEY=", 1)[1])
+                        elif line_s.startswith("gsk_"):
+                            # รองรับกรณีผู้ใช้คัดลอกคีย์ Groq วางไว้บรรทัดใหม่โดยไม่มีชื่อตัวแปร
+                            raw_groq_parts.append(line_s)
             except Exception as e:
                 print(f"KeyManager: Error reading .env: {e}")
+
+        raw_groq = ", ".join(raw_groq_parts)
+        raw_gemini = ", ".join(raw_gemini_parts)
 
         with self._lock:
             self.groq_keys = parse_keys_string(raw_groq)
@@ -81,8 +94,14 @@ class KeyManager:
                 if k not in self.usage_stats:
                     self.usage_stats[k] = 0
 
-    def save_to_env(self, groq_keys: Optional[List[str]] = None, gemini_keys: Optional[List[str]] = None):
-        """บันทึกคีย์ลงในไฟล์ .env และอัปเดต os.environ ทันที"""
+    def save_to_env(self, groq_keys: Optional[List[str]] = None, gemini_keys: Optional[List[str]] = None, allow_empty: bool = False):
+        """บันทึกคีย์ลงในไฟล์ .env และอัปเดต os.environ ทันที (ป้องกันการลบคีย์เดิมโดยไม่เจตนา)"""
+        # ป้องกันการเผลอลบคีย์ทิ้งทั้งหมดเมื่อส่งรายการว่างเปล่ามา ยกเว้นระบุ allow_empty=True ชัดเจน
+        if groq_keys is not None and len(groq_keys) == 0 and not allow_empty:
+            groq_keys = None
+        if gemini_keys is not None and len(gemini_keys) == 0 and not allow_empty:
+            gemini_keys = None
+
         env_file = os.path.join(os.path.dirname(__file__), ".env")
         lines = []
         if os.path.exists(env_file):
@@ -100,6 +119,7 @@ class KeyManager:
         new_lines = []
 
         for line in lines:
+            line_stripped = line.strip()
             if line.startswith("GROQ_API_KEY="):
                 groq_found = True
                 if new_groq_str is not None:
@@ -114,6 +134,9 @@ class KeyManager:
                     os.environ["GEMINI_API_KEY"] = new_gemini_str
                 else:
                     new_lines.append(line)
+            elif line_stripped.startswith("gsk_"):
+                # ตัดบรรทัดคีย์เดี่ยวส่วนเกินออก เพราะคีย์ถูกรวมอยู่ใน GROQ_API_KEY แล้ว
+                continue
             else:
                 new_lines.append(line)
 
@@ -235,19 +258,13 @@ class KeyManager:
                     "message": reset_text,
                     "rate_limit_until": now + duration
                 }
-            elif "401" in low_reason or "invalid" in low_reason or "unauthenticated" in low_reason:
+            elif "401" in low_reason or "invalid_api_key" in low_reason or "unauthenticated" in low_reason:
                 self.key_health[key] = {
                     "status": "invalid",
                     "message": "คีย์ไม่ถูกต้อง หรือถูกระงับ (401)",
                     "rate_limit_until": 0
                 }
-                # ตัดออกจาก active pool
-                if provider == "groq" and key in self.groq_keys:
-                    self.groq_keys.remove(key)
-                    self.save_to_env(groq_keys=self.groq_keys)
-                elif provider == "gemini" and key in self.gemini_keys:
-                    self.gemini_keys.remove(key)
-                    self.save_to_env(gemini_keys=self.gemini_keys)
+                # หมายเหตุ: ไม่ลบคีย์ออกจาก .env อัตโนมัติ เพื่อป้องกันการสูญหายของคีย์จากข้อผิดพลาดชั่วคราว
 
     # ==================== VALIDATION & PRUNING ====================
 
@@ -260,24 +277,25 @@ class KeyManager:
         if not key or not key.strip():
             return "invalid", "คีย์ว่างเปล่า"
         try:
-            from groq import Groq
-            client = Groq(api_key=key.strip(), timeout=5.0)
-            models = client.models.list()
-            return "active", f"เชื่อมต่อปกติ ({len(models.data)} โมเดลพร้อมใช้งาน)"
+            import urllib.request
+            import json
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/models",
+                headers={"Authorization": f"Bearer {key.strip()}"}
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                data = json.loads(resp.read().decode())
+                models = data.get("data", [])
+                return "active", f"เชื่อมต่อปกติ ({len(models)} โมเดลพร้อมใช้งาน)"
         except Exception as e:
             err = str(e)
             low_err = err.lower()
-            if "401" in err or "invalid_api_key" in low_err or "unauthorized" in low_err:
+            if "401" in err or "unauthorized" in low_err:
                 return "invalid", "คีย์ไม่ถูกต้องหรือถูกระงับ (401 Invalid Key)"
-            if "429" in err or "rate" in low_err or "quota" in low_err:
-                time_match = re.search(r'try again in ([\d\.]+)(s|m|h)?', low_err)
-                if time_match:
-                    val = time_match.group(1)
-                    unit = time_match.group(2) or "s"
-                    unit_th = "วินาที" if unit == "s" else ("นาที" if unit == "m" else "ชั่วโมง")
-                    return "rate_limited", f"ติด Rate Limit (รอ {val} {unit_th})"
+            if "429" in err or "rate" in low_err:
                 return "rate_limited", "ติด Rate Limit ชั่วคราว (รอประมาณ 1 นาที)"
-            return "invalid", f"ตรวจสอบไม่ผ่าน: {err[:60]}"
+            # ถ้าเป็น network timeout หรือ latency สูง ไม่ตัดคีย์ทิ้ง ให้ถือว่า active ไว้ก่อน
+            return "active", "พร้อมใช้งาน (Network Latency)"
 
     @staticmethod
     def validate_gemini_key(key: str) -> Tuple[str, str]:

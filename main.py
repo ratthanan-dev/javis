@@ -210,11 +210,30 @@ def save_api_keys(req: ApiKeysRequest):
     """บันทึก API Keys หลายคีย์ (คั่นด้วยคอมม่า) ลงใน .env และหมุนเวียนคีย์ทันที"""
     from key_manager import key_manager, parse_keys_string
     
-    groq_keys = parse_keys_string(req.groq_api_key) if req.groq_api_key is not None else None
-    gemini_keys = parse_keys_string(req.gemini_api_key) if req.gemini_api_key is not None else None
+    # ถ้าไม่ได้ระบุ หรือส่งมาเป็นสตริงว่างเปล่า ไม่แตะต้องคีย์เดิม
+    new_groq = parse_keys_string(req.groq_api_key) if req.groq_api_key and req.groq_api_key.strip() else None
+    new_gemini = parse_keys_string(req.gemini_api_key) if req.gemini_api_key and req.gemini_api_key.strip() else None
+
+    groq_keys = None
+    if new_groq is not None:
+        groq_keys = list(key_manager.get_all_groq_keys())
+        for k in new_groq:
+            if k not in groq_keys:
+                groq_keys.append(k)
+
+    gemini_keys = None
+    if new_gemini is not None:
+        gemini_keys = list(key_manager.get_all_gemini_keys())
+        for k in new_gemini:
+            if k not in gemini_keys:
+                gemini_keys.append(k)
 
     if req.prune_invalid:
-        result = key_manager.validate_and_prune_keys(req.groq_api_key, req.gemini_api_key, prune_invalid=True)
+        result = key_manager.validate_and_prune_keys(
+            raw_groq=", ".join(groq_keys) if groq_keys else None,
+            raw_gemini=", ".join(gemini_keys) if gemini_keys else None,
+            prune_invalid=True
+        )
         return {
             "status": "success",
             "message": result["message"],

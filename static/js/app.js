@@ -1379,7 +1379,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
     loadTelemetry();
     loadChatSessions();
-    loadChatHistory();
+    loadChatHistory(currentSessionId).then(() => {
+        scrollChatToBottom(false);
+    });
     setInterval(loadTelemetry, 5000);
 
     // Load available AI models & API Keys
@@ -1390,6 +1392,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('click', () => {
         initAudioContext();
     }, { once: true });
+});
+
+window.addEventListener('load', () => {
+    scrollChatToBottom(false);
 });
 
 function updateClock() {
@@ -1857,17 +1863,22 @@ async function loadChatHistory(sessionId) {
             data.messages.forEach(msg => {
                 appendCommsEntry(
                     msg.role === 'user' ? 'user' : 'assistant',
-                    msg.content
+                    msg.content,
+                    [],
+                    [],
+                    false
                 );
             });
         }
         updateWelcomeHeroVisibility();
+        // เลื่อนลงล่างสุดทันทีเพื่อแสดงบทสนทนาและคำถามล่าสุด
+        scrollChatToBottom(false);
     } catch (err) {
         console.error('Failed to load chat history:', err);
     }
 }
 
-function appendCommsEntry(role, message, createdGoals = [], agentActions = []) {
+function appendCommsEntry(role, message, createdGoals = [], agentActions = [], shouldScroll = true) {
     const container = document.getElementById('chat-messages');
     const entry = document.createElement('div');
     entry.className = `comms-entry ${role}`;
@@ -1926,7 +1937,9 @@ function appendCommsEntry(role, message, createdGoals = [], agentActions = []) {
 
     container.appendChild(entry);
     updateWelcomeHeroVisibility();
-    scrollChatToBottom();
+    if (shouldScroll) {
+        scrollChatToBottom(true);
+    }
 }
 
 function showTypingComms() {
@@ -1942,7 +1955,7 @@ function showTypingComms() {
         </div>
     `;
     container.appendChild(typing);
-    scrollChatToBottom();
+    scrollChatToBottom(true);
 }
 
 function removeTypingComms() {
@@ -1950,13 +1963,32 @@ function removeTypingComms() {
     if (typing) typing.remove();
 }
 
-function scrollChatToBottom() {
+function scrollChatToBottom(smooth = false) {
+    const stage = document.querySelector('.chatgpt-stage-scrollable') || document.querySelector('main');
     const container = document.getElementById('chat-messages');
-    if (container) {
-        setTimeout(() => {
+    
+    const applyScroll = () => {
+        if (stage) {
+            if (smooth && typeof stage.scrollTo === 'function') {
+                stage.scrollTo({ top: stage.scrollHeight, behavior: 'smooth' });
+            } else {
+                stage.scrollTop = stage.scrollHeight;
+            }
+        }
+        if (container) {
             container.scrollTop = container.scrollHeight;
-        }, 50);
-    }
+        }
+        window.scrollTo({
+            top: document.documentElement.scrollHeight || document.body.scrollHeight,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+    };
+
+    applyScroll();
+    requestAnimationFrame(applyScroll);
+    setTimeout(applyScroll, 40);
+    setTimeout(applyScroll, 120);
+    setTimeout(applyScroll, 300);
 }
 
 function clearLocalChat() {
