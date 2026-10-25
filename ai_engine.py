@@ -17,53 +17,80 @@ except ImportError:
 load_dotenv()
 
 AVAILABLE_MODELS = [
+    # --- Google Gemini Flagships ---
     {
         "id": "gemini-2.5-flash",
         "name": "Gemini 2.5 Flash",
         "short_name": "2.5 Flash",
         "provider": "Google",
-        "badge": "แนะนำ",
-        "description": "ความเร็วสูงพิเศษ รองรับ Autonomous Sandbox & Web Automation Tools"
+        "badge": "แนะนำ (Default)",
+        "description": "ความเร็วสูงพิเศษ พร้อมระบบ Autonomous Sandbox & Web Automation Tools"
     },
     {
-        "id": "gemini-1.5-pro",
-        "name": "Gemini 1.5 Pro",
-        "short_name": "Pro",
+        "id": "gemini-2.5-pro",
+        "name": "Gemini 2.5 Pro",
+        "short_name": "2.5 Pro",
         "provider": "Google",
-        "badge": "Pro",
-        "description": "การวิเคราะห์เชิงลึกและบริบทขนาดใหญ่ (Deep Strategic Reasoning)"
+        "badge": "Thinking Pro",
+        "description": "การวิเคราะห์เชิงลึกขั้นสูงสุด ตรรกะเหตุผลซับซ้อน และการแก้ปัญหาเชิงยุทธศาสตร์"
     },
     {
-        "id": "llama-3.3-70b-versatile",
-        "name": "Llama 3.3 70B",
-        "short_name": "Llama 3.3",
-        "provider": "Groq",
-        "badge": "Groq LPU",
-        "description": "Meta AI ยอดนิยม ฉลาดเฉียบคม ตอบสนองไวสุดขั้วผ่าน Groq LPU"
+        "id": "gemini-3.5-flash",
+        "name": "Gemini 3.5 Flash",
+        "short_name": "3.5 Flash",
+        "provider": "Google",
+        "badge": "Next-Gen SOTA",
+        "description": "สถาปัตยกรรมล่าสุด ประสิทธิภาพและความฉลาดล้ำสมัยรอบด้าน"
     },
     {
-        "id": "deepseek-r1-distill-llama-70b",
-        "name": "DeepSeek R1 Distill 70B",
-        "short_name": "DeepSeek R1",
-        "provider": "Groq",
-        "badge": "Groq LPU",
-        "description": "โมเดลเหตุผลและตรรกะระดับแนวหน้า (Mathematical & Logical Reasoning)"
+        "id": "gemini-3-flash-preview",
+        "name": "Gemini 3 Flash",
+        "short_name": "3 Flash",
+        "provider": "Google",
+        "badge": "Gemini 3",
+        "description": "โมเดลเจเนอเรชันที่ 3 ตอบสนองฉับไวและแม่นยำสูง"
     },
     {
-        "id": "llama-3.1-8b-instant",
-        "name": "Llama 3.1 8B Instant",
-        "short_name": "Llama 8B",
+        "id": "gemini-2.5-flash-lite",
+        "name": "Gemini 2.5 Flash Lite",
+        "short_name": "Flash Lite",
+        "provider": "Google",
+        "badge": "Lightweight",
+        "description": "ประหยัดโควต้า โหลดเร็ว ตอบคำถามทั่วไปได้อย่างมีประสิทธิภาพ"
+    },
+
+    # --- Groq LPU (Ultra-Fast Hardware Inference) ---
+    {
+        "id": "openai/gpt-oss-120b",
+        "name": "OpenAI GPT OSS 120B",
+        "short_name": "GPT 120B",
         "provider": "Groq",
-        "badge": "Groq LPU",
-        "description": "ความเร็วแสง ตอบกลับแทบจะทันที (Sub-second response)"
+        "badge": "Groq Flagship",
+        "description": "โมเดลเรือธง 120B บน Groq LPU ตรรกะและเหตุผลระดับสูงสุด เร็วระดับเสี้ยววินาที"
     },
     {
-        "id": "mixtral-8x7b-32768",
-        "name": "Mixtral 8x7B",
-        "short_name": "Mixtral 8x7B",
+        "id": "openai/gpt-oss-20b",
+        "name": "OpenAI GPT OSS 20B",
+        "short_name": "GPT 20B",
         "provider": "Groq",
-        "badge": "Groq LPU",
-        "description": "สถาปัตยกรรม MoE 8 เซียน รองรับบริบทกว้างขวาง 32k tokens"
+        "badge": "Ultra Speed",
+        "description": "โมเดลความเร็วแสง ตอบสนองไวสุดขั้ว (~0.02 วินาที) เหมาะกับการถามตอบทันที"
+    },
+    {
+        "id": "qwen/qwen3.8-27b",
+        "name": "Qwen 3.8 27B",
+        "short_name": "Qwen 27B",
+        "provider": "Groq",
+        "badge": "Multimodal / TH",
+        "description": "โมเดลชั้นนำที่เข้าใจและตอบภาษาไทยได้อย่างเป็นธรรมชาติ พร้อมรองรับบริบท 131k tokens"
+    },
+    {
+        "id": "allam-2-7b",
+        "name": "ALLaM 2 7B",
+        "short_name": "ALLaM 7B",
+        "provider": "Groq",
+        "badge": "Compact",
+        "description": "โมเดลขนาดกะทัดรัด ประมวลผลรวดเร็วและใช้ทรัพยากรน้อย"
     }
 ]
 
@@ -465,7 +492,10 @@ class JavisAI:
                     temperature=0.7,
                     max_tokens=2048
                 )
-                raw_text = completion.choices[0].message.content or ""
+                choice_msg = completion.choices[0].message
+                raw_text = choice_msg.content or ""
+                if not raw_text.strip() and hasattr(choice_msg, 'reasoning') and choice_msg.reasoning:
+                    raw_text = choice_msg.reasoning
                 clean_message, goals_data = self._parse_response(raw_text)
                 
                 created_goals = []
@@ -533,7 +563,7 @@ class JavisAI:
                 client = Groq(api_key=groq_key)
                 prompt_lang = "in English" if language == "en" else "in Thai"
                 resp = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="qwen/qwen3.8-27b",
                     messages=[
                         {
                             "role": "system",
@@ -594,8 +624,12 @@ class JavisAI:
 
     def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน", session_id: str = "default"):
         """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, session_id แยกบริบท, auto-retry)"""
-        # 1. Routing สำหรับ Groq Models
-        if model and (model.startswith(("llama", "deepseek", "mixtral", "gemma")) or "groq" in model.lower()):
+        # 1. Routing สำหรับ Groq Models (ตรวจสอบจาก AVAILABLE_MODELS หรือชื่อโมเดล)
+        model_meta = next((m for m in AVAILABLE_MODELS if m["id"] == model), None)
+        is_groq = (model_meta and model_meta.get("provider") == "Groq") or \
+                  (model and (model.startswith(("llama", "deepseek", "mixtral", "gemma", "qwen", "openai", "allam")) or "groq" in model.lower()))
+
+        if is_groq:
             return self._send_groq_message(message, model=model, language=language, callsign=callsign, session_id=session_id)
 
         # 2. Routing สำหรับ Gemini Models
