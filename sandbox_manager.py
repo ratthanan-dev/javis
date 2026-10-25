@@ -37,6 +37,11 @@ def validate_path(relative_or_abs_path: str, allow_create_parent: bool = False) 
     
     # Strip leading slashes to prevent absolute path escapes if given relatively
     cleaned = relative_or_abs_path.strip()
+    if cleaned.startswith("./"):
+        cleaned = cleaned[2:].strip()
+    if cleaned.startswith("sandbox/"):
+        cleaned = cleaned[len("sandbox/"):].strip()
+
     if os.path.isabs(cleaned):
         target = os.path.abspath(cleaned)
     else:
