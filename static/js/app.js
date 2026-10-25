@@ -7,6 +7,7 @@ const API = {
     chatHistory: '/api/chat/history',
     briefing: '/api/briefing',
     tts: '/api/tts',
+    stt: '/api/stt',
     telemetry: '/api/telemetry',
     goals: '/api/goals',
     tasks: '/api/tasks',
@@ -518,75 +519,246 @@ canvas.addEventListener('click', () => {
     runBriefingProtocol();
 });
 
-// ==================== SPEECH RECOGNITION (VOICE INPUT) ====================
+// ==================== SPEECH RECOGNITION & VOICE INPUT ENGINE ====================
+
+let mediaRecorder = null;
+let audioChunks = [];
+let mediaStream = null;
+let speechRecognizedText = '';
+let silenceTimeout = null;
 
 function setupSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        console.warn('SpeechRecognition API is not supported in this browser.');
-        return;
+    if (!SpeechRecognition) return null;
+
+    try {
+        const sr = new SpeechRecognition();
+        sr.continuous = true;
+        sr.interimResults = true;
+        sr.lang = userSettings.language === 'en' ? 'en-US' : 'th-TH';
+
+        sr.onresult = (event) => {
+            let interim = '';
+            let final = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    final += event.results[i][0].transcript;
+                } else {
+                    interim += event.results[i][0].transcript;
+                }
+            }
+            const currentText = (final + ' ' + interim).trim();
+            if (currentText) {
+                speechRecognizedText = currentText;
+                const cmdInput = document.getElementById('hud-command-input');
+                if (cmdInput) cmdInput.value = currentText;
+
+                // Reset auto-send silence timer (send after 2.5s of silence after speaking)
+                clearTimeout(silenceTimeout);
+                silenceTimeout = setTimeout(() => {
+                    if (isListening && speechRecognizedText.trim()) {
+                        stopVoiceInput(true);
+                    }
+                }, 2500);
+            }
+        };
+
+        sr.onerror = (event) => {
+            console.warn('[SpeechRecognition] error:', event.error);
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                showMicErrorToast('⚠️ กรุณากดอนุญาต (Allow) การใช้งานไมโครโฟนบนเบราว์เซอร์ เพื่อใช้งานระบบสั่งการด้วยเสียงครับ');
+                stopVoiceInput(false);
+            }
+            // For network or no-speech errors, we rely on the parallel MediaRecorder + backend STT!
+        };
+
+        sr.onend = () => {
+            if (isListening && !speechRecognizedText) {
+                try { sr.start(); } catch (e) {}
+            }
+        };
+
+        return sr;
+    } catch (e) {
+        console.warn('Failed to initialize SpeechRecognition:', e);
+        return null;
     }
-
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = userSettings.language === 'en' ? 'en-US' : 'th-TH';
-
-    recognition.onstart = () => {
-        isListening = true;
-        document.getElementById('btn-mic')?.classList.add('listening');
-        const t = I18N[userSettings.language] || I18N.th;
-        setReactorState(t.reactorListening, t.reactorSpeakNow);
-        playBeep(1000, 0.1);
-    };
-
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.trim();
-        if (transcript) {
-            document.getElementById('hud-command-input').value = transcript;
-            playConfirmChime();
-            submitCommand();
-        }
-    };
-
-    recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        stopListening();
-    };
-
-    recognition.onend = () => {
-        stopListening();
-    };
 }
 
-function toggleVoiceInput() {
+async function toggleVoiceInput() {
     initAudioContext();
-    if (!recognition) {
-        setupSpeechRecognition();
+    if (isListening) {
+        // User clicked again to STOP and TRANSMIT
+        await stopVoiceInput(true);
+    } else {
+        // Start listening
+        await startVoiceInput();
     }
-    if (!recognition) {
-        alert(userSettings.language === 'en' ? 'Speech Recognition is not supported on this browser.' : 'เบราว์เซอร์ของคุณยังไม่รองรับ Speech Recognition ครับท่าน แนะนำให้พิมพ์คำสั่งแทนครับ');
+}
+
+async function startVoiceInput() {
+    speechRecognizedText = '';
+    audioChunks = [];
+    clearTimeout(silenceTimeout);
+
+    const input = document.getElementById('hud-command-input');
+    const micBtn = document.getElementById('btn-mic');
+    const t = I18N[userSettings.language] || I18N.th;
+
+    // 1. Request microphone access
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('getUserMedia is not supported on this browser context');
+        }
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        console.error('Microphone access failed:', err);
+        showMicErrorToast(
+            userSettings.language === 'en'
+                ? '⚠️ Microphone access denied or unavailable. Please grant microphone permission in your browser URL bar.'
+                : '⚠️ ไม่สามารถเข้าถึงไมโครโฟนได้: กรุณากดอนุญาต (Allow) ไมโครโฟนที่แถบ URL ของเบราว์เซอร์ครับ'
+        );
         return;
     }
 
-    if (isListening) {
-        recognition.stop();
-        stopListening();
-    } else {
+    // 2. Set UI Listening State
+    isListening = true;
+    if (micBtn) {
+        micBtn.classList.add('listening');
+        micBtn.title = 'กำลังฟัง... คลิกอีกครั้งเพื่อส่งคำสั่ง (Click to Transmit)';
+    }
+    if (input) {
+        input.placeholder = userSettings.language === 'en'
+            ? '🎙️ Listening... (Speak now, click mic again to send)'
+            : '🎙️ กำลังฟังเสียงของคุณ... (พูดแล้วคลิกไมค์อีกครั้งเพื่อส่งทันที)';
+    }
+    setReactorState(t.reactorListening, 'RECORDING AUDIO');
+    playBeep(1000, 0.12);
+
+    // 3. Start MediaRecorder (local audio capture for backend AI STT fallback)
+    try {
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+
+        mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                audioChunks.push(e.data);
+            }
+        };
+        mediaRecorder.start(250); // collect 250ms chunks
+    } catch (recErr) {
+        console.warn('MediaRecorder init failed:', recErr);
+        mediaRecorder = null;
+    }
+
+    // 4. Start Web Speech Recognition in parallel (for live typing feedback)
+    if (!recognition) {
+        recognition = setupSpeechRecognition();
+    }
+    if (recognition) {
         try {
             recognition.lang = userSettings.language === 'en' ? 'en-US' : 'th-TH';
             recognition.start();
         } catch (e) {
-            recognition.stop();
+            console.warn('SpeechRecognition start failed:', e);
         }
     }
 }
 
-function stopListening() {
+async function stopVoiceInput(autoSubmit = true) {
+    if (!isListening) return;
     isListening = false;
-    document.getElementById('btn-mic')?.classList.remove('listening');
+    clearTimeout(silenceTimeout);
+
+    const micBtn = document.getElementById('btn-mic');
+    if (micBtn) {
+        micBtn.classList.remove('listening');
+        micBtn.title = 'สั่งการด้วยเสียง (Voice Command)';
+    }
+
     const t = I18N[userSettings.language] || I18N.th;
     setReactorState(t.reactorStandby, t.reactorClickMic);
+
+    // Stop Web Speech API
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+
+    // Stop MediaRecorder
+    let audioBlob = null;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        const recorderStopPromise = new Promise((resolve) => {
+            mediaRecorder.onstop = () => {
+                const mime = mediaRecorder.mimeType || 'audio/webm';
+                audioBlob = new Blob(audioChunks, { type: mime });
+                resolve(audioBlob);
+            };
+        });
+        mediaRecorder.stop();
+        await recorderStopPromise;
+    }
+
+    // Stop media stream tracks to turn off hardware mic light
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+    }
+
+    const input = document.getElementById('hud-command-input');
+    if (input) {
+        input.placeholder = t.hudInputPlaceholder || 'ป้อนคำสั่งหรือสอบถาม J.A.R.V.I.S....';
+    }
+
+    // Determine final transcript
+    let finalSpeech = speechRecognizedText.trim();
+
+    // If browser speech recognition failed to produce text, use backend AI STT (Gemini / Groq Whisper)
+    if (!finalSpeech && audioBlob && audioBlob.size > 2000) {
+        setReactorState(t.reactorComputing, 'TRANSCRIBING SPEECH...');
+        showSttProgress(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'command.webm');
+            const res = await fetch(API.stt, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.status === 'success' && data.transcript) {
+                finalSpeech = data.transcript.trim();
+            }
+        } catch (sttErr) {
+            console.error('Backend STT failed:', sttErr);
+        } finally {
+            showSttProgress(false);
+            setReactorState(t.reactorStandby, t.reactorClickMic);
+        }
+    }
+
+    if (finalSpeech) {
+        if (input) input.value = finalSpeech;
+        playConfirmChime();
+        if (autoSubmit) {
+            submitCommand();
+        }
+    } else if (autoSubmit) {
+        showMicErrorToast('⚠️ ไม่พบเสียงพูดที่ชัดเจน กรุณาลองใหม่อีกครั้งครับ');
+    }
+}
+
+function showMicErrorToast(msg) {
+    appendCommsEntry('system', msg);
+    playBeep(400, 0.2);
+}
+
+function showSttProgress(loading) {
+    const input = document.getElementById('hud-command-input');
+    if (!input) return;
+    if (loading) {
+        input.value = '⚡ กำลังแปลงเสียงพูดเป็นข้อความผ่าน AI (Speech-to-Text)...';
+    }
 }
 
 // ==================== SPEECH SYNTHESIS (VOICE OUTPUT) ====================

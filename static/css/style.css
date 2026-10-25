@@ -1480,15 +1480,22 @@ body::before {
 }
 
 .mic-btn.listening {
-    color: #fff;
-    background: var(--status-red);
-    box-shadow: 0 0 18px var(--status-red-glow);
-    animation: micPulse 1.5s infinite;
+    color: #fff !important;
+    background: #ea4335 !important;
+    box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7);
+    animation: micPulseGlow 1.4s infinite;
 }
 
-@keyframes micPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
+@keyframes micPulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 12px rgba(234, 67, 53, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(234, 67, 53, 0);
+    }
 }
 
 /* Send Transmit Button */

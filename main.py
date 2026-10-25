@@ -2,7 +2,7 @@ import os
 import io
 import time
 import asyncio
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -299,6 +299,68 @@ async def text_to_speech(req: TTSRequest):
     except Exception as e:
         print(f"TTS Generation Error: {e}")
         return JSONResponse({"error": f"TTS synthesis failed: {str(e)}"}, status_code=500)
+
+
+@app.post("/api/stt")
+async def speech_to_text(request: Request, file: Optional[UploadFile] = None):
+    """แปลงเสียงพูดเป็นข้อความ (Speech-to-Text) ด้วย Groq Whisper / Gemini 2.5 Flash"""
+    audio_bytes = b""
+    content_type = "audio/webm"
+    
+    if file is not None:
+        audio_bytes = await file.read()
+        content_type = file.content_type or "audio/webm"
+    else:
+        audio_bytes = await request.body()
+        content_type = request.headers.get("content-type", "audio/webm")
+        
+    if not audio_bytes:
+        return JSONResponse({"error": "ไม่มีข้อมูลเสียง"}, status_code=400)
+    
+    from key_manager import key_manager
+    transcript = ""
+    
+    # 1. พยายามใช้ Groq Whisper (ความเร็วสูงพิเศษ < 0.5s แม่นยำภาษาไทยและอังกฤษ)
+    groq_key = key_manager.get_groq_key()
+    if groq_key:
+        try:
+            from groq import Groq
+            client = Groq(api_key=groq_key)
+            transcription = client.audio.transcriptions.create(
+                file=("speech.webm", audio_bytes, content_type or "audio/webm"),
+                model="whisper-large-v3-turbo",
+                response_format="text"
+            )
+            transcript = str(transcription).strip()
+        except Exception as e:
+            print(f"[STT] Groq Whisper error: {e}")
+            key_manager.mark_key_failed("groq", groq_key, str(e))
+    
+    # 2. หากยังไม่ได้ผลลัพธ์ ให้ใช้ Google Gemini 2.5 Flash เป็น Fallback
+    if not transcript:
+        gemini_key = key_manager.get_gemini_key()
+        if gemini_key:
+            try:
+                from google import genai
+                from google.genai import types
+                client = genai.Client(api_key=gemini_key, http_options={"api_version": "v1beta"})
+                resp = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[
+                        types.Part.from_bytes(data=audio_bytes, mime_type=content_type or "audio/webm"),
+                        "Transcribe the spoken audio verbatim in its original language (Thai or English). Output ONLY the exact transcribed text, nothing else. If there is no discernible speech or only silence, output nothing."
+                    ]
+                )
+                transcript = (resp.text or "").strip()
+            except Exception as e:
+                print(f"[STT] Gemini transcription error: {e}")
+                key_manager.mark_key_failed("gemini", gemini_key, str(e))
+                
+    return {
+        "status": "success",
+        "transcript": transcript
+    }
+
 
 
 # ==================== TELEMETRY API ====================
