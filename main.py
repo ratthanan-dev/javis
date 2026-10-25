@@ -82,6 +82,13 @@ class UpdateSessionRequest(BaseModel):
     title: str
 
 
+@app.get("/api/chat/search")
+def search_chat_history(q: Optional[str] = ""):
+    """ค้นหาบทสนทนาและเนื้อหาข้อความแชท"""
+    results = db.search_chat_sessions(q or "")
+    return {"results": results, "query": q or ""}
+
+
 @app.get("/api/chat/sessions")
 def list_chat_sessions():
     """ดึงรายชื่อห้องสนทนาทั้งหมด"""
@@ -150,20 +157,26 @@ def chat(req: ChatRequest):
     # บันทึกข้อความ J.A.R.V.I.S.
     db.save_message("assistant", result["message"], session_id=session_id)
     
-    # Auto-title สำหรับห้องสนทนาที่ยังเป็นชื่อเริ่มต้น
+    # Auto-title อัจฉริยะสำหรับห้องสนทนาที่ยังเป็นชื่อเริ่มต้น
     current_session = db.get_chat_session(session_id)
-    if current_session and current_session.get("title") in ["บทสนทนาใหม่", "New Chat", "บทสนทนาหลัก"]:
-        clean_title = user_msg[:32].strip()
-        if len(user_msg) > 32:
-            clean_title += "..."
-        db.update_chat_session_title(session_id, clean_title)
+    session_title = current_session.get("title") if current_session else None
+    if current_session and session_title in ["บทสนทนาใหม่", "New Chat", "บทสนทนาหลัก"]:
+        new_title = javis_ai.generate_chat_title(
+            user_message=user_msg,
+            assistant_message=result.get("message", ""),
+            language=req.language or "th"
+        )
+        if new_title:
+            db.update_chat_session_title(session_id, new_title)
+            session_title = new_title
 
     return {
         "message": result["message"],
         "speech_text": result.get("speech_text", result["message"]),
         "created_goals": result["created_goals"],
         "agent_actions": result.get("agent_actions", []),
-        "session_id": session_id
+        "session_id": session_id,
+        "session_title": session_title
     }
 
 

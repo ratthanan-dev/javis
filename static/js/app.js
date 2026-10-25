@@ -6,6 +6,7 @@ const API = {
     chat: '/api/chat',
     chatHistory: '/api/chat/history',
     chatSessions: '/api/chat/sessions',
+    chatSearch: '/api/chat/search',
     briefing: '/api/briefing',
     tts: '/api/tts',
     stt: '/api/stt',
@@ -1822,7 +1823,15 @@ async function submitCommand() {
         }
 
         // Refresh sessions list to display updated thread title and ordering
-        loadChatSessions();
+        if (data.session_title && typeof cachedChatSessions !== 'undefined') {
+            const s = cachedChatSessions.find(item => item.id === currentSessionId);
+            if (s) s.title = data.session_title;
+        }
+        if (typeof currentChatSearchQuery !== 'undefined' && currentChatSearchQuery) {
+            executeChatSearch(currentChatSearchQuery);
+        } else {
+            loadChatSessions();
+        }
     } catch (err) {
         removeTypingComms();
         appendCommsEntry('assistant', userSettings.language === 'en' ? 'Apologies, Sir. Neural comms link encountered an anomaly.' : 'ขออภัยครับท่าน ระบบเครือข่ายขัดข้อง กรุณาลองสั่งการใหม่อีกครั้งครับ');
@@ -2023,39 +2032,102 @@ document.addEventListener('click', (event) => {
     collapseSidebar(event);
 });
 
-async function loadChatSessions() {
+// ==================== CHAT SESSIONS, SEARCH & RENAMING ====================
+
+let activeRenamingSessionId = null;
+let chatSearchDebounceTimer = null;
+let currentChatSearchQuery = '';
+let cachedChatSessions = [];
+
+function highlightSearchMatch(text, query) {
+    if (!text) return '';
+    if (!query) return text;
     try {
-        const res = await fetch(API.chatSessions);
-        const data = await res.json();
-        const container = document.getElementById('sidebar-chat-sessions-list');
-        if (!container) return;
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    } catch (e) {
+        return text;
+    }
+}
 
-        const sessions = data.sessions || [];
-        if (sessions.length === 0) {
+function renderChatSessionsList(query = '') {
+    const container = document.getElementById('sidebar-chat-sessions-list');
+    if (!container) return;
+
+    if (!cachedChatSessions || cachedChatSessions.length === 0) {
+        if (query) {
+            container.innerHTML = `<div class="sidebar-empty-hint">${userSettings.language === 'en' ? 'No matching conversations' : 'ไม่พบประวัติการสนทนาที่ค้นหา'}</div>`;
+        } else {
             container.innerHTML = `<div class="sidebar-empty-hint">${userSettings.language === 'en' ? 'No chat sessions' : 'ยังไม่มีประวัติการสนทนา'}</div>`;
-            return;
         }
+        return;
+    }
 
-        // ตรวจสอบว่า currentSessionId ยังคงมีอยู่ในรายการหรือไม่
-        const sessionExists = sessions.some(s => s.id === currentSessionId);
-        if (!sessionExists && sessions.length > 0) {
-            currentSessionId = sessions[0].id;
-            localStorage.setItem('stark_current_session_id', currentSessionId);
-        }
+    container.innerHTML = cachedChatSessions.map(s => {
+        const isActive = s.id === currentSessionId;
+        const isRenaming = s.id === activeRenamingSessionId;
+        const rawTitle = s.title || (userSettings.language === 'en' ? 'New Chat' : 'บทสนทนาใหม่');
+        const escapedTitle = escapeHtml(rawTitle);
 
-        container.innerHTML = sessions.map(s => {
-            const isActive = s.id === currentSessionId;
-            const title = escapeHtml(s.title || (userSettings.language === 'en' ? 'New Chat' : 'บทสนทนาใหม่'));
+        if (isRenaming) {
             return `
                 <div class="chat-session-pill ${isActive ? 'active' : ''}" 
                      data-session-id="${escapeHtml(s.id)}" 
-                     onclick="switchChatSession('${escapeHtml(s.id)}')" 
-                     title="${title}">
-                    <div class="session-info">
-                        <span class="session-icon">💬</span>
-                        <span class="session-title">${title}</span>
+                     onclick="event.stopPropagation()">
+                    <div class="session-rename-box">
+                        <input type="text" 
+                               class="session-rename-input" 
+                               id="rename-input-${escapeHtml(s.id)}" 
+                               value="${escapedTitle}" 
+                               onkeydown="handleRenameKey(event, '${escapeHtml(s.id)}')" />
+                        <button class="session-rename-confirm-btn" 
+                                onclick="confirmRenameChatSession('${escapeHtml(s.id)}', event)" 
+                                title="${userSettings.language === 'en' ? 'Save' : 'บันทึก'}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                        <button class="session-rename-cancel-btn" 
+                                onclick="cancelRenameChatSession(event)" 
+                                title="${userSettings.language === 'en' ? 'Cancel' : 'ยกเลิก'}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
-                    <button class="session-delete-btn" 
+                </div>
+            `;
+        }
+
+        const displayTitle = highlightSearchMatch(escapedTitle, query);
+        const snippetHtml = s.snippet 
+            ? `<div class="session-match-snippet">“${highlightSearchMatch(escapeHtml(s.snippet), query)}”</div>` 
+            : '';
+
+        return `
+            <div class="chat-session-pill ${isActive ? 'active' : ''}" 
+                 data-session-id="${escapeHtml(s.id)}" 
+                 onclick="switchChatSession('${escapeHtml(s.id)}')" 
+                 title="${escapedTitle}">
+                <div class="session-info">
+                    <div class="session-header-row">
+                        <span class="session-icon">💬</span>
+                        <span class="session-title">${displayTitle}</span>
+                    </div>
+                    ${snippetHtml}
+                </div>
+                <div class="session-actions">
+                    <button class="session-action-btn session-rename-btn" 
+                            onclick="startRenameChatSession('${escapeHtml(s.id)}', event)" 
+                            title="${userSettings.language === 'en' ? 'Rename' : 'เปลี่ยนชื่อ'}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="session-action-btn session-delete-btn" 
                             onclick="deleteChatSession('${escapeHtml(s.id)}', event)" 
                             title="${userSettings.language === 'en' ? 'Delete Chat' : 'ลบการสนทนานี้'}">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2064,10 +2136,138 @@ async function loadChatSessions() {
                         </svg>
                     </button>
                 </div>
-            `;
-        }).join('');
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadChatSessions() {
+    try {
+        const res = await fetch(API.chatSessions);
+        const data = await res.json();
+        cachedChatSessions = data.sessions || [];
+
+        // ตรวจสอบว่า currentSessionId ยังคงมีอยู่ในรายการหรือไม่
+        const sessionExists = cachedChatSessions.some(s => s.id === currentSessionId);
+        if (!sessionExists && cachedChatSessions.length > 0) {
+            currentSessionId = cachedChatSessions[0].id;
+            localStorage.setItem('stark_current_session_id', currentSessionId);
+        }
+
+        renderChatSessionsList();
     } catch (err) {
         console.error('Failed to load chat sessions:', err);
+    }
+}
+
+function handleChatSearch(query) {
+    currentChatSearchQuery = (query || '').trim();
+    const clearBtn = document.getElementById('btn-clear-chat-search');
+    const feedback = document.getElementById('sidebar-search-feedback');
+
+    if (clearBtn) {
+        clearBtn.style.display = currentChatSearchQuery ? 'flex' : 'none';
+    }
+
+    if (chatSearchDebounceTimer) {
+        clearTimeout(chatSearchDebounceTimer);
+    }
+
+    if (!currentChatSearchQuery) {
+        if (feedback) feedback.style.display = 'none';
+        loadChatSessions();
+        return;
+    }
+
+    chatSearchDebounceTimer = setTimeout(async () => {
+        await executeChatSearch(currentChatSearchQuery);
+    }, 150);
+}
+
+function clearChatSearch() {
+    const searchInput = document.getElementById('chat-search-input');
+    if (searchInput) searchInput.value = '';
+    handleChatSearch('');
+}
+
+async function executeChatSearch(query) {
+    const feedback = document.getElementById('sidebar-search-feedback');
+    try {
+        const res = await fetch(`${API.chatSearch}?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        const results = data.results || [];
+        cachedChatSessions = results;
+
+        if (feedback) {
+            feedback.style.display = 'block';
+            if (userSettings.language === 'en') {
+                feedback.textContent = results.length > 0 ? `Found ${results.length} conversation(s)` : 'No matches found';
+            } else {
+                feedback.textContent = results.length > 0 ? `พบ ${results.length} บทสนทนา` : 'ไม่พบประวัติที่ค้นหา';
+            }
+        }
+
+        renderChatSessionsList(query);
+    } catch (err) {
+        console.error('Chat search failed:', err);
+    }
+}
+
+function startRenameChatSession(sessionId, event) {
+    if (event) event.stopPropagation();
+    activeRenamingSessionId = sessionId;
+    renderChatSessionsList(currentChatSearchQuery);
+    setTimeout(() => {
+        const input = document.getElementById(`rename-input-${sessionId}`);
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
+}
+
+function cancelRenameChatSession(event) {
+    if (event) event.stopPropagation();
+    activeRenamingSessionId = null;
+    renderChatSessionsList(currentChatSearchQuery);
+}
+
+function handleRenameKey(event, sessionId) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        confirmRenameChatSession(sessionId, event);
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelRenameChatSession(event);
+    }
+}
+
+async function confirmRenameChatSession(sessionId, event) {
+    if (event) event.stopPropagation();
+    const input = document.getElementById(`rename-input-${sessionId}`);
+    const newTitle = input ? input.value.trim() : '';
+    if (!newTitle) {
+        cancelRenameChatSession(event);
+        return;
+    }
+
+    playBeep(1400, 0.04);
+    try {
+        await fetch(`${API.chatSessions}/${encodeURIComponent(sessionId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle })
+        });
+        activeRenamingSessionId = null;
+        if (currentChatSearchQuery) {
+            await executeChatSearch(currentChatSearchQuery);
+        } else {
+            await loadChatSessions();
+        }
+    } catch (err) {
+        console.error('Failed to rename session:', err);
+        activeRenamingSessionId = null;
+        renderChatSessionsList(currentChatSearchQuery);
     }
 }
 
@@ -2093,6 +2293,17 @@ async function switchChatSession(sessionId) {
 
 async function handleNewMissionClick() {
     playBeep(1300, 0.05);
+    // ล้างการค้นหาหากกำลังค้นหาอยู่
+    const searchInput = document.getElementById('chat-search-input');
+    if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        currentChatSearchQuery = '';
+        const clearBtn = document.getElementById('btn-clear-chat-search');
+        if (clearBtn) clearBtn.style.display = 'none';
+        const feedback = document.getElementById('sidebar-search-feedback');
+        if (feedback) feedback.style.display = 'none';
+    }
+
     try {
         const res = await fetch(API.chatSessions, {
             method: 'POST',
@@ -2147,7 +2358,11 @@ async function deleteChatSession(sessionId, event) {
             localStorage.setItem('stark_current_session_id', currentSessionId);
             await loadChatHistory(currentSessionId);
         }
-        await loadChatSessions();
+        if (currentChatSearchQuery) {
+            await executeChatSearch(currentChatSearchQuery);
+        } else {
+            await loadChatSessions();
+        }
     } catch (err) {
         console.error('Failed to delete chat session:', err);
     }

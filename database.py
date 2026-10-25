@@ -285,6 +285,60 @@ def get_chat_sessions():
     return [dict(s) for s in sessions]
 
 
+def search_chat_sessions(query: str):
+    """ค้นหาห้องสนทนาและข้อความตามคำค้นหา (ค้นหาทั้งชื่อหัวข้อและเนื้อหาข้อความในแชท)"""
+    if not query or not query.strip():
+        return get_chat_sessions()
+    
+    q_clean = query.strip()
+    q_wildcard = f"%{q_clean}%"
+    conn = get_db()
+    
+    rows = conn.execute("""
+        SELECT 
+            s.id, 
+            s.title, 
+            s.created_at, 
+            s.updated_at, 
+            COUNT(m.id) as message_count,
+            (
+                SELECT m2.content 
+                FROM chat_messages m2 
+                WHERE m2.session_id = s.id AND m2.content LIKE ? 
+                ORDER BY m2.id DESC 
+                LIMIT 1
+            ) as match_snippet
+        FROM chat_sessions s
+        LEFT JOIN chat_messages m ON s.id = m.session_id
+        WHERE s.title LIKE ? OR s.id IN (
+            SELECT DISTINCT session_id FROM chat_messages WHERE content LIKE ?
+        )
+        GROUP BY s.id
+        ORDER BY s.updated_at DESC
+    """, (q_wildcard, q_wildcard, q_wildcard)).fetchall()
+    conn.close()
+    
+    results = []
+    for r in rows:
+        d = dict(r)
+        snippet = d.pop("match_snippet", None)
+        if snippet:
+            lower_snip = snippet.lower()
+            lower_q = q_clean.lower()
+            idx = lower_snip.find(lower_q)
+            if idx != -1:
+                start = max(0, idx - 20)
+                end = min(len(snippet), idx + len(q_clean) + 30)
+                prefix = "..." if start > 0 else ""
+                suffix = "..." if end < len(snippet) else ""
+                d["snippet"] = prefix + snippet[start:end].replace("\n", " ").strip() + suffix
+            else:
+                d["snippet"] = snippet[:50] + ("..." if len(snippet) > 50 else "")
+        results.append(d)
+        
+    return results
+
+
 def get_chat_session(session_id: str):
     """ดึงข้อมูลห้องสนทนาเดี่ยว"""
     conn = get_db()

@@ -518,6 +518,80 @@ class JavisAI:
             "agent_actions": []
         }
 
+    def generate_chat_title(self, user_message: str, assistant_message: str = "", language: str = "th") -> str:
+        """สร้างชื่อหัวข้อบทสนทนาอัจฉริยะแบบกระชับ (3-5 คำ) จากข้อความแรกของการสนทนา"""
+        user_clean = (user_message or "").strip()
+        if not user_clean:
+            return "New Chat" if language == "en" else "บทสนทนาใหม่"
+
+        from key_manager import key_manager
+
+        # 1. ลองใช้ Groq LPU (llama-3.1-8b-instant) ถ้ามีคีย์ (ตอบสนองไวระดับ ~100-200ms)
+        try:
+            groq_key = key_manager.get_groq_key()
+            if groq_key and GROQ_AVAILABLE:
+                client = Groq(api_key=groq_key)
+                prompt_lang = "in English" if language == "en" else "in Thai"
+                resp = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": f"You are a conversation title generator. Create a concise, 3 to 5 words title {prompt_lang} summarizing the topic. Output ONLY the raw title without quotes, markdown, or punctuation."
+                        },
+                        {
+                            "role": "user",
+                            "content": user_clean[:250]
+                        }
+                    ],
+                    max_tokens=25,
+                    temperature=0.3
+                )
+                title = resp.choices[0].message.content.strip().strip('"\'`«»“”')
+                if title and 2 <= len(title) <= 45:
+                    return title
+        except Exception:
+            pass
+
+        # 2. ลองใช้ Gemini 2.5 Flash
+        try:
+            gemini_key = key_manager.get_gemini_key() or os.getenv("GEMINI_API_KEY")
+            if gemini_key:
+                client = genai.Client(api_key=gemini_key)
+                prompt_lang = "in English" if language == "en" else "in Thai"
+                prompt = (
+                    f"Create a concise 3 to 5 words title {prompt_lang} summarizing this user request: {user_clean[:200]}.\n"
+                    f"Return ONLY the title text, no quotes, no markdown, max 35 characters."
+                )
+                resp = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+                title = resp.text.strip().strip('"\'`«»“”')
+                if title and 2 <= len(title) <= 45:
+                    return title
+        except Exception:
+            pass
+
+        # 3. Smart Heuristic Fallback (ตัดคำทักทายออกและดึงใจความหลัก)
+        cleaned = re.sub(
+            r'^(สวัสดี(ครับ|ค่ะ|จาร์วิส)?|หวัดดี|hello|hi|hey|ช่วย|อยากทราบว่า|ช่วยบอก|can you|please)\s*',
+            '',
+            user_clean,
+            flags=re.IGNORECASE
+        ).strip()
+        
+        if not cleaned:
+            cleaned = user_clean
+            
+        cleaned = re.sub(r'[\r\n\t]+', ' ', cleaned)
+        cleaned = re.sub(r'[?!=#*~`]+', '', cleaned).strip()
+        
+        if len(cleaned) > 30:
+            words = cleaned[:30].rsplit(' ', 1)
+            return words[0] if len(words) > 1 and len(words[0]) > 6 else cleaned[:30]
+        return cleaned or ("New Chat" if language == "en" else "บทสนทนาใหม่")
+
     def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน", session_id: str = "default"):
         """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, session_id แยกบริบท, auto-retry)"""
         # 1. Routing สำหรับ Groq Models
