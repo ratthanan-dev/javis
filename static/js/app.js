@@ -377,10 +377,34 @@ function drawArcReactor() {
 
     // Dynamic Theme Color Mapping
     const themePalettes = {
-        cyan: { primary: '#00f0ff', glow: 'rgba(0, 240, 255, 0.4)' },
-        gold: { primary: '#ffaa00', glow: 'rgba(255, 170, 0, 0.45)' },
-        emerald: { primary: '#00ff9d', glow: 'rgba(0, 255, 157, 0.45)' },
-        purple: { primary: '#c044ff', glow: 'rgba(192, 68, 255, 0.45)' }
+        cyan: { 
+            primary: '#00f0ff', 
+            glow: 'rgba(0, 240, 255, 0.45)',
+            ringDim: 'rgba(0, 240, 255, 0.12)',
+            ringTick: 'rgba(0, 240, 255, 0.25)',
+            coreSecondary: 'rgba(0, 153, 255, 0.5)'
+        },
+        gold: { 
+            primary: '#ffb700', 
+            glow: 'rgba(255, 183, 0, 0.45)',
+            ringDim: 'rgba(255, 183, 0, 0.12)',
+            ringTick: 'rgba(255, 183, 0, 0.25)',
+            coreSecondary: 'rgba(255, 119, 0, 0.5)'
+        },
+        emerald: { 
+            primary: '#00ff9d', 
+            glow: 'rgba(0, 255, 157, 0.45)',
+            ringDim: 'rgba(0, 255, 157, 0.12)',
+            ringTick: 'rgba(0, 255, 157, 0.25)',
+            coreSecondary: 'rgba(0, 184, 117, 0.5)'
+        },
+        purple: { 
+            primary: '#c044ff', 
+            glow: 'rgba(192, 68, 255, 0.45)',
+            ringDim: 'rgba(192, 68, 255, 0.12)',
+            ringTick: 'rgba(192, 68, 255, 0.25)',
+            coreSecondary: 'rgba(136, 36, 204, 0.5)'
+        }
     };
     const activePalette = themePalettes[userSettings.theme] || themePalettes.cyan;
 
@@ -397,7 +421,7 @@ function drawArcReactor() {
         glowColor = 'rgba(255, 255, 255, 0.8)';
         speed = 0.07;
     } else if (isSpeaking) {
-        glowColor = `rgba(0, 240, 255, ${0.4 + audioEnergy * 0.5})`;
+        glowColor = activePalette.glow;
         speed = 0.02 + audioEnergy * 0.04;
     }
 
@@ -410,7 +434,7 @@ function drawArcReactor() {
     // 1. Outermost telemetry ring
     ctx.beginPath();
     ctx.arc(0, 0, 135, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+    ctx.strokeStyle = activePalette.ringDim;
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -428,7 +452,7 @@ function drawArcReactor() {
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
-        ctx.strokeStyle = i % 5 === 0 ? primaryColor : 'rgba(0, 240, 255, 0.25)';
+        ctx.strokeStyle = i % 5 === 0 ? primaryColor : activePalette.ringTick;
         ctx.lineWidth = i % 5 === 0 ? 2 : 1;
         ctx.stroke();
     }
@@ -875,9 +899,11 @@ function loadSettingsFromStorage() {
 
 function applySettingsToDOM() {
     // 1. Theme
-    document.body.setAttribute('data-theme', userSettings.theme || 'cyan');
+    const activeTheme = userSettings.theme || 'cyan';
+    document.body.setAttribute('data-theme', activeTheme);
+    document.documentElement.setAttribute('data-theme', activeTheme);
     document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.theme === userSettings.theme);
+        btn.classList.toggle('active', btn.dataset.theme === activeTheme);
     });
 
     // 2. Scanlines
@@ -1285,6 +1311,7 @@ function onSettingLanguageChange() {
 function setHUDTheme(theme) {
     userSettings.theme = theme;
     document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
     document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.theme === theme);
     });
