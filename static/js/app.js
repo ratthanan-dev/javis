@@ -2538,6 +2538,24 @@ function escapeForJsString(text) {
 
 // ==================== MULTI-MODEL AI ROUTING & GROQ API ====================
 let currentModel = localStorage.getItem('jarvis_active_model') || 'gemini-2.5-flash';
+
+const DEPRECATED_MODEL_MAP = {
+    'gemini-2.5-pro': 'gemini-3.1-pro-preview',
+    'gemini-1.5-pro': 'gemini-3.1-pro-preview',
+    'gemini-pro': 'gemini-3.1-pro-preview',
+    'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
+    'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
+    'deepseek-r1-distill-llama-70b': 'openai/gpt-oss-120b',
+    'mixtral-8x7b-32768': 'qwen/qwen3.8-27b'
+};
+
+if (DEPRECATED_MODEL_MAP[currentModel]) {
+    currentModel = DEPRECATED_MODEL_MAP[currentModel];
+    try {
+        localStorage.setItem('jarvis_active_model', currentModel);
+    } catch(e) {}
+}
+
 let cachedModelsList = [];
 let hasGroqKeyConfigured = false;
 
@@ -2547,6 +2565,12 @@ async function loadAvailableModels() {
         const data = await res.json();
         cachedModelsList = data.models || [];
         hasGroqKeyConfigured = data.has_groq_key;
+
+        if (DEPRECATED_MODEL_MAP[currentModel]) {
+            currentModel = DEPRECATED_MODEL_MAP[currentModel];
+            try { localStorage.setItem('jarvis_active_model', currentModel); } catch(e) {}
+        }
+
         renderModelPickerPopup(cachedModelsList, data.has_groq_key);
         updateActiveModelPills();
     } catch (e) {
@@ -2607,7 +2631,7 @@ function renderModelPickerPopup(models, hasGroqKey) {
 
 function updateActiveModelPills() {
     const activeObj = cachedModelsList.find(m => m.id === currentModel);
-    const shortName = activeObj ? activeObj.short_name : (currentModel.includes('flash') ? '2.5 Flash' : (currentModel.includes('llama') ? 'Llama 3.3' : 'Pro'));
+    const shortName = activeObj ? activeObj.short_name : (currentModel.includes('3.1') ? '3.1 Pro' : (currentModel.includes('flash') ? '2.5 Flash' : (currentModel.includes('llama') ? 'GPT 120B' : 'Pro')));
     
     const capsuleNameEl = document.getElementById('capsule-model-name');
     if (capsuleNameEl) capsuleNameEl.textContent = shortName;

@@ -1,7 +1,14 @@
 import os
+import sys
+import site
 import re
 import json
 import time
+
+user_site = site.getusersitepackages()
+if os.path.exists(user_site) and user_site not in sys.path:
+    sys.path.insert(0, user_site)
+
 from google import genai
 from dotenv import load_dotenv
 import database as db
@@ -27,12 +34,12 @@ AVAILABLE_MODELS = [
         "description": "ความเร็วสูงพิเศษ พร้อมระบบ Autonomous Sandbox & Web Automation Tools"
     },
     {
-        "id": "gemini-2.5-pro",
-        "name": "Gemini 2.5 Pro",
-        "short_name": "2.5 Pro",
+        "id": "gemini-3.1-pro-preview",
+        "name": "Gemini 3.1 Pro",
+        "short_name": "3.1 Pro",
         "provider": "Google",
-        "badge": "Thinking Pro",
-        "description": "การวิเคราะห์เชิงลึกขั้นสูงสุด ตรรกะเหตุผลซับซ้อน และการแก้ปัญหาเชิงยุทธศาสตร์"
+        "badge": "Thinking Pro (SOTA)",
+        "description": "การวิเคราะห์เชิงลึกขั้นสูงสุด ตรรกะเหตุผลซับซ้อน และการแก้ปัญหาเชิงยุทธศาสตร์ (SOTA Pro)"
     },
     {
         "id": "gemini-3.5-flash",
@@ -83,16 +90,23 @@ AVAILABLE_MODELS = [
         "provider": "Groq",
         "badge": "Multimodal / TH",
         "description": "โมเดลชั้นนำที่เข้าใจและตอบภาษาไทยได้อย่างเป็นธรรมชาติ พร้อมรองรับบริบท 131k tokens"
-    },
-    {
-        "id": "allam-2-7b",
-        "name": "ALLaM 2 7B",
-        "short_name": "ALLaM 7B",
-        "provider": "Groq",
-        "badge": "Compact",
-        "description": "โมเดลขนาดกะทัดรัด ประมวลผลรวดเร็วและใช้ทรัพยากรน้อย"
     }
 ]
+
+MODEL_ALIASES = {
+    # Gemini Aliases & Deprecated Migrations
+    "gemini-2.5-pro": "gemini-3.1-pro-preview",
+    "gemini-pro": "gemini-3.1-pro-preview",
+    "gemini-1.5-pro": "gemini-3.1-pro-preview",
+    "gemini-1.5-flash": "gemini-2.5-flash",
+    "gemini-flash": "gemini-2.5-flash",
+    # Groq Aliases & Deprecated Migrations
+    "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+    "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+    "deepseek-r1-distill-llama-70b": "openai/gpt-oss-120b",
+    "mixtral-8x7b-32768": "qwen/qwen3.8-27b",
+    "allam-2-7b": "qwen/qwen3.8-27b",
+}
 
 SYSTEM_PROMPT = """คุณคือ J.A.R.V.I.S. (Just A Rather Very Intelligent System) — ปัญญาประดิษฐ์และผู้ช่วยส่วนตัวระดับยุทธศาสตร์ของ Stark Industries
 
@@ -379,6 +393,7 @@ class JavisAI:
 
     def _get_or_create_chat(self, session_id: str = "default", model: str = "gemini-2.5-flash"):
         """ดึงหรือสร้าง chat session ของ Google GenAI แยกตาม session_id พร้อมกู้คืน context ประวัติที่สมบูรณ์"""
+        model = MODEL_ALIASES.get(model, model)
         if not self.client:
             from key_manager import key_manager
             gemini_key = key_manager.get_gemini_key()
@@ -442,6 +457,21 @@ class JavisAI:
         self.clear_session_cache()
 
     def _send_groq_message(self, message: str, model: str, language: str = "th", callsign: str = "ท่าน", session_id: str = "default") -> dict:
+        try:
+            from groq import Groq
+        except ImportError:
+            fallback_msg = (
+                f"My apologies, {callsign or 'Sir'}. The Groq SDK is not available in the current environment."
+                if language == "en" else
+                f"ขออภัยครับ{callsign or 'ท่าน'} ระบบตรวจไม่พบ Groq SDK ในสภาพแวดล้อม Python ครับ"
+            )
+            return {
+                "message": fallback_msg,
+                "speech_text": clean_for_speech(fallback_msg),
+                "created_goals": [],
+                "agent_actions": []
+            }
+
         from key_manager import key_manager, mask_key
         groq_keys = key_manager.get_all_groq_keys()
         if not groq_keys:
@@ -624,6 +654,9 @@ class JavisAI:
 
     def send_message(self, message: str, model: str = "gemini-2.5-flash", language: str = "th", callsign: str = "ท่าน", session_id: str = "default"):
         """ส่งข้อความและประมวลผลการตอบกลับ (รองรับสลับโมเดล Gemini & Groq, session_id แยกบริบท, auto-retry)"""
+        # 0. Mapping โมเดลที่ถูกยกเลิก (Deprecated) หรือ Alias ให้ไปหาโมเดลปัจจุบัน
+        model = MODEL_ALIASES.get(model, model)
+
         # 1. Routing สำหรับ Groq Models (ตรวจสอบจาก AVAILABLE_MODELS หรือชื่อโมเดล)
         model_meta = next((m for m in AVAILABLE_MODELS if m["id"] == model), None)
         is_groq = (model_meta and model_meta.get("provider") == "Groq") or \
@@ -694,6 +727,22 @@ class JavisAI:
                 }
             except Exception as e:
                 error_str = str(e)
+                # ตรวจจับกรณีโมเดลไม่มีอยู่จริง (404 NOT_FOUND), ถูกยกเลิก, หรือติดขัดโควต้าเฉพาะโมเดล Pro (เช่น limit: 0)
+                is_not_found = any(err in error_str for err in ["404", "NOT_FOUND", "is no longer available", "not found"])
+                is_zero_quota = "limit: 0" in error_str or ("RESOURCE_EXHAUSTED" in error_str and model != "gemini-2.5-flash")
+
+                if (is_not_found or is_zero_quota) and model != "gemini-2.5-flash":
+                    print(f"⚠️ Model '{model}' unavailable ({error_str[:120]}...). Seamlessly falling back to 'gemini-2.5-flash'...")
+                    self.clear_session_cache(session_id=session_id)
+                    fallback_res = self.send_message(
+                        message=message,
+                        model="gemini-2.5-flash",
+                        language=language,
+                        callsign=callsign,
+                        session_id=session_id
+                    )
+                    return fallback_res
+
                 is_retryable = any(code in error_str for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "high demand"])
                 
                 if is_retryable and attempt < max_retries - 1:
